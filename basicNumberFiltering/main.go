@@ -2,7 +2,6 @@ package main
 
 import (
 	"math"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -76,6 +75,63 @@ func returnLessThan(nums []int, lesserInt int) []int {
 	}
 	return ans
 }
+
+func conditionTransformer(expression string) func(num int) bool {
+	if strings.HasPrefix(expression, "multiple of") {
+		strMutiple := strings.Split(expression, " ")
+		intMutiple, err := strconv.Atoi(strMutiple[len(strMutiple)-1])
+		multipleFn := func(num int) bool {
+			return num%intMutiple == 0
+		}
+		if err == nil {
+			return multipleFn
+		}
+	} else if strings.HasPrefix(expression, "greater than") {
+		strGreater := strings.Split(expression, " ")
+		intGreater, err := strconv.Atoi(strGreater[len(strGreater)-1])
+		greaterFN := func(num int) bool {
+			return num > intGreater
+		}
+		if err == nil {
+			return greaterFN
+		}
+	} else if strings.HasPrefix(expression, "less than") {
+		strLesser := strings.Split(expression, " ")
+		intLesser, err := strconv.Atoi(strLesser[len(strLesser)-1])
+		lessFn := func(num int) bool {
+			return num < intLesser
+		}
+		if err == nil {
+			return lessFn
+		}
+	} else if expression == "even" {
+		evenFn := func(num int) bool {
+			return num%2 == 0
+		}
+		return evenFn
+	} else if expression == "odd" {
+		oddFn := func(num int) bool {
+			return num%2 != 0
+		}
+		return oddFn
+	} else if expression == "prime" {
+		primeFn := func(num int) bool {
+			if num < 2 {
+				return false
+			}
+			for i := 2; float64(i) <= math.Sqrt(float64(num)); i++ {
+				if num%i == 0 {
+					return false
+				}
+			}
+			return true
+		}
+		return primeFn
+	}
+	return func(num int) bool {
+		return false
+	}
+}
 func conditionEvaluator(expression string, nums []int) []int {
 	ans := make([]int, 0)
 	if strings.HasPrefix(expression, "multiple of") {
@@ -129,22 +185,34 @@ func story6(nums []int) []int {
 	return ans
 }
 func story7(nums []int, conditions []string) []int {
-	for _, condition := range conditions {
-		nums = conditionEvaluator(condition, nums)
+	ans := make([]int, 0)
+	for _, num := range nums {
+		flag := true
+		for _, condition := range conditions {
+			check := conditionTransformer(condition)
+			if !check(num) {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			ans = append(ans, num)
+		}
 	}
-	return nums
+
+	return ans
 }
 
 func story8(nums []int, conditions []string) []int {
 	ans := make([]int, 0)
-	for _, condition := range conditions {
-		temp := conditionEvaluator(condition, nums)
-		for _, t := range temp {
-			if !slices.Contains(ans, t) {
-				ans = append(ans, t)
+	for _, num := range nums {
+		for _, condition := range conditions {
+			check := conditionTransformer(condition)
+			if check(num) {
+				ans = append(ans, num)
+				break
 			}
 		}
 	}
-	slices.Sort(ans)
 	return ans
 }

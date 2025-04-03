@@ -189,7 +189,7 @@ func Test_story7(t *testing.T) {
 				nums:       []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
 				conditions: []string{"less than 6", "multiple of 3"},
 			},
-			want: []int{6, 12},
+			want: []int{3},
 		},
 	}
 	for _, tt := range tests {
