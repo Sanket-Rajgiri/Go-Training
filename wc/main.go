@@ -1,8 +1,8 @@
-package wc
+package main
 
 import (
 	"bufio"
-	"log"
+	"fmt"
 	"os"
 )
 
@@ -14,7 +14,6 @@ func lineCount(filepath string) (int, error) {
 	lineCounter := 0
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Print(err)
 		return 0, err
 	}
 	defer f.Close()
@@ -27,7 +26,7 @@ func lineCount(filepath string) (int, error) {
 	// 			lineCounter += 1
 	// 			break
 	// 		} else {
-	// 			log.Print(err)
+	//
 	// 			return 0, err
 	// 		}
 	// 	}
@@ -40,7 +39,6 @@ func lineCount(filepath string) (int, error) {
 		lineCounter++
 	}
 	if err := scanner.Err(); err != nil {
-		log.Print(err)
 		return 0, err
 	}
 
@@ -51,7 +49,6 @@ func byteCount(filepath string) (int, error) {
 	byteCounter := 0
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Print(err)
 		return 0, err
 	}
 	defer f.Close()
@@ -62,7 +59,6 @@ func byteCount(filepath string) (int, error) {
 		byteCounter++
 	}
 	if err := scanner.Err(); err != nil {
-		log.Print(err)
 		return 0, err
 	}
 	return byteCounter, nil
@@ -72,7 +68,6 @@ func wordCount(filepath string) (int, error) {
 	wordCounter := 0
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Print(err)
 		return 0, err
 	}
 	defer f.Close()
@@ -83,8 +78,30 @@ func wordCount(filepath string) (int, error) {
 		wordCounter++
 	}
 	if err := scanner.Err(); err != nil {
-		log.Print(err)
 		return 0, err
 	}
 	return wordCounter, nil
+}
+
+func checkFile(filepath string) error {
+	if _, err := os.Open(filepath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
+	args := os.Args
+	filepath := args[len(args)-1]
+	err := checkFile(filepath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
+		os.Exit(2)
+	}
+	lines, err := lineCount(filepath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
+		os.Exit(2)
+	}
+	fmt.Fprintf(os.Stdout, "%8d %s\n", lines, filepath)
 }
