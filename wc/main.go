@@ -12,10 +12,7 @@ import (
 
 func lineCount(filepath string) (int, error) {
 	lineCounter := 0
-	f, err := os.Open(filepath)
-	if err != nil {
-		return 0, err
-	}
+	f, _ := os.Open(filepath)
 	defer f.Close()
 
 	// reader := bufio.NewReader(f)
@@ -47,10 +44,7 @@ func lineCount(filepath string) (int, error) {
 
 func byteCount(filepath string) (int, error) {
 	byteCounter := 0
-	f, err := os.Open(filepath)
-	if err != nil {
-		return 0, err
-	}
+	f, _ := os.Open(filepath)
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
@@ -66,10 +60,7 @@ func byteCount(filepath string) (int, error) {
 
 func wordCount(filepath string) (int, error) {
 	wordCounter := 0
-	f, err := os.Open(filepath)
-	if err != nil {
-		return 0, err
-	}
+	f, _ := os.Open(filepath)
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
