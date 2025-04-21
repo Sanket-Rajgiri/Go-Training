@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 )
 
-// const (
-// 	lineDelimiter = '\n'
-// )
+const (
+	lineFlag      = "-l"
+	wordFlag      = "-w"
+	characterFlag = "-c"
+	helpFlag      = "-h"
+)
 
 func lineCount(filepath string) (int, error) {
 	lineCounter := 0
@@ -73,26 +77,55 @@ func wordCount(filepath string) (int, error) {
 	}
 	return wordCounter, nil
 }
-
-func checkFile(filepath string) error {
-	if _, err := os.Open(filepath); err != nil {
-		return err
+func output(args []string) string {
+	var output string
+	filepath := args[len(args)-1]
+	if slices.Contains(args, lineFlag) {
+		lines, err := lineCount(filepath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
+			os.Exit(125)
+		}
+		output += fmt.Sprintf("%8d", lines)
 	}
-	return nil
+	if slices.Contains(args, wordFlag) {
+		words, err := wordCount(filepath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
+			os.Exit(125)
+		}
+		output += fmt.Sprintf("%8d", words)
+	}
+
+	if slices.Contains(args, characterFlag) {
+		bytes, err := byteCount(filepath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
+			os.Exit(125)
+		}
+		output += fmt.Sprintf("%8d", bytes)
+	}
+
+	return output + " " + filepath
 }
 
 func main() {
 	args := os.Args
 	filepath := args[len(args)-1]
-	err := checkFile(filepath)
+	fileinfo, err := os.Stat(filepath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
-		os.Exit(2)
+		fmt.Println(fileinfo.IsDir())
+		if os.IsNotExist(err) {
+			os.Exit(2)
+		} else if os.IsPermission(err) {
+			os.Exit(1)
+		} else {
+			os.Exit(125)
+		}
+	} else if fileinfo.IsDir() {
+		fmt.Fprintf(os.Stderr, "%s read %s: Is a directory\n", args[0], filepath)
+		os.Exit(21)
 	}
-	lines, err := lineCount(filepath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s %s\n", args[0], err)
-		os.Exit(2)
-	}
-	fmt.Fprintf(os.Stdout, "%8d %s\n", lines, filepath)
+	fmt.Fprintf(os.Stdout, "%s\n", output(args))
 }
