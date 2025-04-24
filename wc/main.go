@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 )
 
 type errorCode int
@@ -149,13 +148,13 @@ func countGenerator(wcflagState flagState, filepath string) ([3]int, errorCode, 
 func generateCliOutput(wcFlagState flagState, fileOutput [3]int, filepath string) {
 	var cliOutput string
 	if wcFlagState.countLines {
-		cliOutput += strconv.Itoa(fileOutput[0])
+		cliOutput += fmt.Sprintf("%8d", fileOutput[0])
 	}
 	if wcFlagState.countWords {
-		cliOutput += strconv.Itoa(fileOutput[1])
+		cliOutput += fmt.Sprintf("%8d", fileOutput[1])
 	}
 	if wcFlagState.countBytes {
-		cliOutput += strconv.Itoa(fileOutput[2])
+		cliOutput += fmt.Sprintf("%8d", fileOutput[2])
 	}
 	fmt.Printf("%8s %s\n", cliOutput, filepath)
 }
@@ -181,12 +180,11 @@ func main() {
 			if err != nil {
 				errorHandler(filepath, err)
 				osExitCode = 1
-			} else {
-				generateCliOutput(wcFlagState, fileOutput, filepath)
-				for i := range fileOutput {
-					if fileOutput[i] != -1 {
-						totalCount[i] += fileOutput[i]
-					}
+			}
+			generateCliOutput(wcFlagState, fileOutput, filepath)
+			for i := range fileOutput {
+				if fileOutput[i] != -1 {
+					totalCount[i] += fileOutput[i]
 				}
 			}
 		}
