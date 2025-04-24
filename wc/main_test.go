@@ -5,21 +5,54 @@ import (
 )
 
 type test struct {
-	name     string
-	filePath string
-	want     int
+	name              string
+	filePath          string
+	want              int
+	expectedError     error
+	expectedErrorCode int
 }
 
+func Test_checkFile(t *testing.T) {
+	tests := []test{
+		{
+			name:              "test1",
+			filePath:          "test/test1.txt",
+			expectedError:     nil,
+			expectedErrorCode: 0,
+		},
+		{
+			name:              "test2",
+			filePath:          "test/test3.txt",
+			expectedError:     ErrFileNotExist,
+			expectedErrorCode: 1,
+		},
+		{
+			name:              "test3",
+			filePath:          "test",
+			expectedError:     ErrIsDirectory,
+			expectedErrorCode: 21,
+		},
+	}
+	for _, test := range tests {
+		errorCode, fileError := checkFile(test.filePath)
+		if test.expectedError != fileError {
+			t.Errorf("Expected error %v but got %v", test.expectedError, fileError)
+		}
+		if test.expectedErrorCode != errorCode {
+			t.Errorf("Expected errorCode %v  but got %v", test.expectedErrorCode, errorCode)
+		}
+	}
+}
 func Test_lineCount(t *testing.T) {
 	tests := []test{
 		{
 			name:     "Test1",
-			filePath: "test1.txt",
+			filePath: "test/test1.txt",
 			want:     10,
 		},
 		{
 			name:     "Test1",
-			filePath: "test2.txt",
+			filePath: "test/test2.txt",
 			want:     0,
 		},
 	}
@@ -39,12 +72,12 @@ func Test_byteCount(t *testing.T) {
 	tests := []test{
 		{
 			name:     "Test1",
-			filePath: "test1.txt",
+			filePath: "test/test1.txt",
 			want:     445,
 		},
 		{
 			name:     "Test1",
-			filePath: "test2.txt",
+			filePath: "test/test2.txt",
 			want:     0,
 		},
 	}
@@ -63,12 +96,12 @@ func Test_wordCount(t *testing.T) {
 	tests := []test{
 		{
 			name:     "Test1",
-			filePath: "test1.txt",
+			filePath: "test/test1.txt",
 			want:     78,
 		},
 		{
 			name:     "Test1",
-			filePath: "test2.txt",
+			filePath: "test/test2.txt",
 			want:     0,
 		},
 	}
