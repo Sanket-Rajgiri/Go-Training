@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type errorCode int
@@ -15,6 +16,7 @@ const (
 	filePermissionDeniedErrorCode errorCode = 2
 	IsDirectoryErrorCode          errorCode = 21
 	unexpectedErrorCode           errorCode = 125
+	invalidFlagsErrorCode         errorCode = 22
 	programName                             = "wc"
 )
 
@@ -23,6 +25,7 @@ var (
 	ErrPermissionDenied = errors.New("permission denied")
 	ErrFileNotExist     = errors.New("no such file or directory")
 	ErrMissingArguments = errors.New("missing arugments")
+	ErrInvalidFlags     = errors.New("invalid flags passed")
 )
 
 type flagState struct {
@@ -61,46 +64,34 @@ func byteCount(filepath string) (int, error) {
 	return countWithSplit(filepath, bufio.ScanBytes)
 }
 
-func cliOutput(wcflagState flagState, filepath string) (string, errorCode, error) {
-	var outputString string
-	if wcflagState.countLines {
-		lines, err := lineCount(filepath)
-		if err != nil {
-			return " ", unexpectedErrorCode, err
-		}
-		outputString += fmt.Sprintf("%1d", lines)
-	}
-	if wcflagState.countWords {
-		lines, err := wordCount(filepath)
-		if err != nil {
-			return " ", unexpectedErrorCode, err
-		}
-		outputString += fmt.Sprintf("%1d", lines)
-	}
-	if wcflagState.countBytes {
-		lines, err := byteCount(filepath)
-		if err != nil {
-			return " ", unexpectedErrorCode, err
-
-		}
-		outputString += fmt.Sprintf("%1d", lines)
-	}
-	return outputString, 0, nil
-}
-
-func flagParser() flagState {
+func flagParser() (flagState, []string, errorCode, error) {
 	lineFlag := flag.Bool("l", false, "count lines")
 	wordFlag := flag.Bool("w", false, "count words")
 	byteFlag := flag.Bool("c", false, "count bytes")
+	var wcflagState flagState
+	var fileList []string
 	flag.Parse()
-	if !*lineFlag && !*wordFlag && !*byteFlag {
-		return flagState{countLines: true, countWords: true, countBytes: true}
+	fileList = flag.Args()
+
+	if !flag.Parsed() {
+		return wcflagState, fileList, invalidFlagsErrorCode, ErrInvalidFlags
 	}
-	return flagState{countLines: *lineFlag, countWords: *wordFlag, countBytes: *byteFlag}
+
+	if len(fileList) < 1 {
+		return wcflagState, fileList, invalidFlagsErrorCode, ErrMissingArguments
+	}
+
+	if !*lineFlag && !*wordFlag && !*byteFlag {
+		wcflagState = flagState{countLines: true, countWords: true, countBytes: true}
+	} else {
+		wcflagState = flagState{countLines: *lineFlag, countWords: *wordFlag, countBytes: *byteFlag}
+	}
+
+	return wcflagState, fileList, 0, nil
 }
 
 func checkFile(filepath string) (errorCode errorCode, err error) {
-	fileinfo, err := os.Stat(filepath)
+	fileInfo, err := os.Stat(filepath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fileNotExistErrorCode, ErrFileNotExist
@@ -110,29 +101,96 @@ func checkFile(filepath string) (errorCode errorCode, err error) {
 			return unexpectedErrorCode, err
 		}
 	}
-	if fileinfo.IsDir() {
+	if fileInfo.IsDir() {
 		return IsDirectoryErrorCode, ErrIsDirectory
 	}
 	return 0, nil
 }
 
-func main() {
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, ErrMissingArguments)
-		os.Exit(int(unexpectedErrorCode))
+func errorHandler(filepath string, err error) {
+	if len(filepath) > 0 {
+		fmt.Fprintf(os.Stderr, "%s: %s: %3s\n", programName, filepath, err)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s: %3s\n", programName, err)
 	}
-	flagState := flagParser()
-	filepath := args[len(args)-1]
+}
+
+func countGenerator(wcflagState flagState, filepath string) ([3]int, errorCode, error) {
+	var output = [3]int{}
 	exitCode, err := checkFile(filepath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s: %3s\n", programName, filepath, err)
-		os.Exit(int(exitCode))
+		return output, exitCode, err
 	}
-	output, exitCode, err := cliOutput(flagState, filepath)
+	if wcflagState.countLines {
+		lines, err := lineCount(filepath)
+		if err != nil {
+			return output, unexpectedErrorCode, err
+		}
+		output[0] = lines
+	}
+	if wcflagState.countWords {
+		words, err := wordCount(filepath)
+		if err != nil {
+			return output, unexpectedErrorCode, err
+		}
+		output[1] = words
+	}
+	if wcflagState.countBytes {
+		bytes, err := byteCount(filepath)
+		if err != nil {
+			return output, unexpectedErrorCode, err
+
+		}
+		output[2] = bytes
+	}
+	return output, 0, nil
+}
+
+func generateCliOutput(wcFlagState flagState, fileOutput [3]int, filepath string) {
+	var cliOutput string
+	if wcFlagState.countLines {
+		cliOutput += strconv.Itoa(fileOutput[0])
+	}
+	if wcFlagState.countWords {
+		cliOutput += strconv.Itoa(fileOutput[1])
+	}
+	if wcFlagState.countBytes {
+		cliOutput += strconv.Itoa(fileOutput[2])
+	}
+	fmt.Printf("%8s %s\n", cliOutput, filepath)
+}
+
+func main() {
+	wcFlagState, fileList, errorCode, err := flagParser()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s: %3s\n", programName, filepath, err)
-		os.Exit(int(exitCode))
+		errorHandler(" ", err)
+		os.Exit(int(errorCode))
 	}
-	fmt.Printf("%8s %s\n", output, filepath)
+	if len(fileList) == 1 {
+		fileOutput, errorcode, err := countGenerator(wcFlagState, fileList[0])
+		if err != nil {
+			errorHandler(fileList[0], err)
+			os.Exit(int(errorcode))
+		}
+		generateCliOutput(wcFlagState, fileOutput, fileList[0])
+	} else {
+		var totalCount = [3]int{0, 0, 0}
+		var osExitCode int
+		for _, filepath := range fileList {
+			fileOutput, _, err := countGenerator(wcFlagState, filepath)
+			if err != nil {
+				errorHandler(filepath, err)
+				osExitCode = 1
+			} else {
+				generateCliOutput(wcFlagState, fileOutput, filepath)
+				for i := range fileOutput {
+					if fileOutput[i] != -1 {
+						totalCount[i] += fileOutput[i]
+					}
+				}
+			}
+		}
+		generateCliOutput(wcFlagState, totalCount, "total")
+		os.Exit(osExitCode)
+	}
 }
