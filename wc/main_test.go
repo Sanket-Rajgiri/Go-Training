@@ -9,26 +9,26 @@ type test struct {
 	filePath          string
 	want              int
 	expectedError     error
-	expectedErrorCode int
+	expectedErrorCode errorCode
 }
 
 func Test_checkFile(t *testing.T) {
 	tests := []test{
 		{
 			name:              "test1",
-			filePath:          "test/test1.txt",
+			filePath:          "testFiles/test1.txt",
 			expectedError:     nil,
 			expectedErrorCode: 0,
 		},
 		{
 			name:              "test2",
-			filePath:          "test/test3.txt",
+			filePath:          "testFiles/test3.txt",
 			expectedError:     ErrFileNotExist,
 			expectedErrorCode: 1,
 		},
 		{
 			name:              "test3",
-			filePath:          "test",
+			filePath:          "testFiles",
 			expectedError:     ErrIsDirectory,
 			expectedErrorCode: 21,
 		},
