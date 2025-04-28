@@ -12,7 +12,7 @@ type test struct {
 	expectedErrorCode errorCode
 }
 
-func Test_checkFile(t *testing.T) {
+func Test_openFile(t *testing.T) {
 	tests := []test{
 		{
 			name:              "test1",
@@ -34,7 +34,7 @@ func Test_checkFile(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		errorCode, fileError := checkFile(test.filePath)
+		_, errorCode, fileError := openFile(test.filePath)
 		if test.expectedError != fileError {
 			t.Errorf("Expected error %v but got %v", test.expectedError, fileError)
 		}
@@ -58,7 +58,8 @@ func Test_lineCount(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := lineCount(test.filePath)
+		file, _, _ := openFile(test.filePath)
+		got, err := lineCount(file)
 		if err != nil {
 			t.Errorf("Got error while running lineCount : %v", err)
 		}
@@ -82,7 +83,8 @@ func Test_byteCount(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got, err := byteCount(test.filePath)
+		file, _, _ := openFile(test.filePath)
+		got, err := byteCount(file)
 		if err != nil {
 			t.Errorf("Got error while running byteCount : %v", err)
 		}
@@ -106,7 +108,8 @@ func Test_wordCount(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got, err := wordCount(test.filePath)
+		file, _, _ := openFile(test.filePath)
+		got, err := wordCount(file)
 		if err != nil {
 			t.Errorf("Got error while running wordCount : %v", err)
 		}
