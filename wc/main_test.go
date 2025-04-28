@@ -47,12 +47,12 @@ func Test_lineCount(t *testing.T) {
 	tests := []test{
 		{
 			name:     "Test1",
-			filePath: "test/test1.txt",
+			filePath: "testFiles/test1.txt",
 			want:     10,
 		},
 		{
 			name:     "Test1",
-			filePath: "test/test2.txt",
+			filePath: "testFiles/test2.txt",
 			want:     0,
 		},
 	}
@@ -72,12 +72,12 @@ func Test_byteCount(t *testing.T) {
 	tests := []test{
 		{
 			name:     "Test1",
-			filePath: "test/test1.txt",
+			filePath: "testFiles/test1.txt",
 			want:     445,
 		},
 		{
 			name:     "Test1",
-			filePath: "test/test2.txt",
+			filePath: "testFiles/test2.txt",
 			want:     0,
 		},
 	}
@@ -96,12 +96,12 @@ func Test_wordCount(t *testing.T) {
 	tests := []test{
 		{
 			name:     "Test1",
-			filePath: "test/test1.txt",
+			filePath: "testFiles/test1.txt",
 			want:     78,
 		},
 		{
 			name:     "Test1",
-			filePath: "test/test2.txt",
+			filePath: "testFiles/test2.txt",
 			want:     0,
 		},
 	}
