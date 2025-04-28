@@ -121,7 +121,7 @@ func errorHandler(filepath string, err error) {
 }
 
 func countGenerator(wcflagState flagState, file []byte) ([3]int, errorCode, error) {
-	var output = [3]int{}
+	var output = [3]int{-1, -1, -1}
 	if wcflagState.countLines {
 		lines, err := lineCount(file)
 		if err != nil {
