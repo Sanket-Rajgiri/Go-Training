@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 type errorCode int
@@ -183,27 +184,34 @@ func main() {
 	if len(fileList) > 0 {
 		var totalCount = [3]int{0, 0, 0}
 		var osExitCode int
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+
 		for _, filepath := range fileList {
-			file, exitCode, err := openFile(filepath)
-			if err != nil {
-				errorHandler(" ", err)
-				osExitCode = int(exitCode)
-			}
-			fileOutput, _, err := countGenerator(wcFlagState, file)
-			if err != nil {
-				errorHandler(filepath, err)
-				osExitCode = 1
-			}
-			if err != nil {
-				errorHandler(filepath, err)
-			}
-			generateCliOutput(wcFlagState, fileOutput, filepath)
-			for i := range fileOutput {
-				if fileOutput[i] != -1 {
-					totalCount[i] += fileOutput[i]
+			wg.Add(1)
+			go func(fp string, totalCount *[3]int) {
+				defer wg.Done()
+				file, _, err := openFile(filepath)
+				if err != nil {
+					errorHandler(filepath, err)
+					osExitCode = 1
 				}
-			}
+				fileOutput, _, err := countGenerator(wcFlagState, file)
+				if err != nil {
+					errorHandler(filepath, err)
+					osExitCode = 1
+				}
+				generateCliOutput(wcFlagState, fileOutput, filepath)
+				for i := range fileOutput {
+					if fileOutput[i] != -1 {
+						mu.Lock()
+						totalCount[i] += fileOutput[i]
+						mu.Unlock()
+					}
+				}
+			}(filepath, &totalCount)
 		}
+		wg.Wait()
 		if len(fileList) > 1 {
 			generateCliOutput(wcFlagState, totalCount, "total")
 		}
