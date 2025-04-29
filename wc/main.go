@@ -186,6 +186,11 @@ func main() {
 		var osExitCode int
 		var wg sync.WaitGroup
 		var mu sync.Mutex
+		type outputType struct {
+			fileName  string
+			countList [3]int
+		}
+		outputsChannel := make(chan outputType, len(fileList)+1)
 
 		for _, filepath := range fileList {
 			wg.Add(1)
@@ -201,7 +206,7 @@ func main() {
 					errorHandler(filepath, err)
 					osExitCode = 1
 				}
-				generateCliOutput(wcFlagState, fileOutput, filepath)
+				outputsChannel <- outputType{fileName: filepath, countList: fileOutput}
 				for i := range fileOutput {
 					if fileOutput[i] != -1 {
 						mu.Lock()
@@ -213,8 +218,13 @@ func main() {
 		}
 		wg.Wait()
 		if len(fileList) > 1 {
-			generateCliOutput(wcFlagState, totalCount, "total")
+			outputsChannel <- outputType{fileName: "total", countList: totalCount}
 		}
+		close(outputsChannel)
+		for res := range outputsChannel {
+			generateCliOutput(wcFlagState, res.countList, res.fileName)
+		}
+
 		os.Exit(osExitCode)
 	}
 }
