@@ -35,13 +35,13 @@ type flagState struct {
 	countBytes bool
 }
 
-func countWithSplit(file []byte, split bufio.SplitFunc) (int, error) {
+func countWithSplit(file *[]byte, split bufio.SplitFunc) (int, error) {
 	// f, err := os.Open(filepath)
 	// if err != nil {
 	// 	return 0, err
 	// }
 	// defer f.Close()
-	reader := bytes.NewReader(file)
+	reader := bytes.NewReader(*file)
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(split)
 	count := 0
@@ -54,15 +54,15 @@ func countWithSplit(file []byte, split bufio.SplitFunc) (int, error) {
 	return count, nil
 }
 
-func lineCount(file []byte) (int, error) {
+func lineCount(file *[]byte) (int, error) {
 	return countWithSplit(file, bufio.ScanLines)
 }
 
-func wordCount(file []byte) (int, error) {
+func wordCount(file *[]byte) (int, error) {
 	return countWithSplit(file, bufio.ScanWords)
 }
 
-func byteCount(file []byte) (int, error) {
+func byteCount(file *[]byte) (int, error) {
 	return countWithSplit(file, bufio.ScanBytes)
 }
 
@@ -121,7 +121,7 @@ func errorHandler(filepath string, err error) {
 	}
 }
 
-func countGenerator(wcflagState flagState, file []byte) ([3]int, errorCode, error) {
+func countGenerator(wcflagState flagState, file *[]byte) ([3]int, errorCode, error) {
 	var output = [3]int{-1, -1, -1}
 	if wcflagState.countLines {
 		lines, err := lineCount(file)
@@ -174,7 +174,7 @@ func main() {
 			errorHandler(" ", err)
 			os.Exit(int(errorCode))
 		}
-		fileOutput, errorCode, err := countGenerator(wcFlagState, input)
+		fileOutput, errorCode, err := countGenerator(wcFlagState, &input)
 		if err != nil {
 			errorHandler(" ", err)
 			os.Exit(int(errorCode))
@@ -201,7 +201,7 @@ func main() {
 					errorHandler(filepath, err)
 					osExitCode = 1
 				}
-				fileOutput, _, err := countGenerator(wcFlagState, file)
+				fileOutput, _, err := countGenerator(wcFlagState, &file)
 				if err != nil {
 					errorHandler(filepath, err)
 					osExitCode = 1
