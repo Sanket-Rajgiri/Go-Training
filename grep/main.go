@@ -2,13 +2,16 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
-	"flag"
+	"sync"
+
+	// "flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 )
 
 const (
@@ -20,12 +23,13 @@ var (
 	ErrPermissionDenied = errors.New("permission denied")
 	ErrFileNotExist     = errors.New("no such file or directory")
 	ErrInvalidFlags     = errors.New("invalid flags passed")
+	ErrFileExists       = errors.New("file already exists !")
 )
 
 type flagState struct {
 	caseInsensitive bool
 	invertMatch     bool
-	output          bool
+	outputFlag      string
 }
 
 // var grepFlagState flagState
@@ -95,19 +99,48 @@ func flagParser() (string, []string, flagState, error) {
 	var fileList []string
 	var searchKey string
 	var grepFlagState flagState
-	caseInsensitiveFlag := flag.Bool("i", false, "Ignore  case")
-	invertMatchFlag := flag.Bool("v", false, "Invert sense of matching, to select non-matching lines")
-	outputFlag := flag.Bool("o", false, " grep [options...] [files....] -o [filename]")
+	caseInsensitiveFlag := flag.BoolP("ignore-case", "i", false, "Ignore  case")
+	invertMatchFlag := flag.BoolP("invert-match", "v", false, "Invert sense of matching, to select non-matching lines")
+	outputFlag := flag.StringP("output", "o", "", " grep [options...] [files....] -o [filename]")
 	flag.Parse()
 	if !flag.Parsed() {
 		return searchKey, fileList, grepFlagState, ErrInvalidFlags
 	}
-	grepFlagState = flagState{caseInsensitive: *caseInsensitiveFlag, output: *outputFlag, invertMatch: *invertMatchFlag}
+	grepFlagState = flagState{caseInsensitive: *caseInsensitiveFlag, invertMatch: *invertMatchFlag, outputFlag: *outputFlag}
 	searchKey = flag.Arg(0)
 	if flag.NArg() > 1 {
 		fileList = flag.Args()[1:]
 	}
 	return searchKey, fileList, grepFlagState, nil
+}
+
+func printOnStdOut(filepath string, output []string) {
+	for _, line := range output {
+		if len(filepath) > 1 {
+			fmt.Printf("%s: %s\n", filepath, line)
+		} else {
+			fmt.Println(line)
+		}
+	}
+}
+
+func WriteToFile(filepath string, output []string) error {
+	_, err := os.Stat(filepath)
+	if err == nil {
+		return ErrFileExists
+	}
+	file, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	_, err = writer.WriteString(strings.Join(output, "\n"))
+	if err != nil {
+		return err
+	}
+	return writer.Flush()
 }
 
 func main() {
@@ -118,37 +151,57 @@ func main() {
 		osExitCode = 1
 	} else {
 		if len(fileList) < 1 {
-			inputStream, err := io.ReadAll(os.Stdin)
+			output, err := search(os.Stdin, searchKey, grepFlagState.caseInsensitive, grepFlagState.invertMatch)
 			if err != nil {
 				errorHandler("", err)
 				osExitCode = 1
 			} else {
-				inputStreamReader := bytes.NewReader(inputStream)
-				inputStreamReader.Seek(0, io.SeekStart)
-				output, err := search(inputStreamReader, searchKey, grepFlagState.caseInsensitive, grepFlagState.invertMatch)
-				if err != nil {
-					errorHandler("", err)
-					osExitCode = 1
-				} else {
-					fmt.Printf("%v\n", strings.Join(output, "\n"))
-				}
+				printOnStdOut("", output)
 			}
 		} else {
-			for _, filepath := range fileList {
-				fileOutput, err := openFile(filepath, searchKey, &grepFlagState)
-				// if err != nil {
-				// 	errorHandler(filepath, err)
-				// 	osExitCode = 1
-				// }
-				// fileOutput, err := search(bufio.NewReader(file), searchKey, *grepFlagState.caseInsensitive, *grepFlagState.invertMatch)
-				if err != nil {
-					errorHandler(filepath, err)
-					osExitCode = 1
-				} else {
-					fmt.Printf("%v\n", strings.Join(fileOutput, "\n"))
-				}
-
+			var wg sync.WaitGroup
+			type outputType struct {
+				fileName string
+				output   []string
 			}
+			outputChannel := make(chan outputType, len(fileList))
+			// var mu sync.Mutex
+			for _, filepath := range fileList {
+				wg.Add(1)
+				go func(filepath string, grepFlagState flagState) {
+					defer wg.Done()
+					fileOutput, err := openFile(filepath, searchKey, &grepFlagState)
+					// if err != nil {
+					// 	errorHandler(filepath, err)
+					// 	osExitCode = 1
+					// }
+					// fileOutput, err := search(bufio.NewReader(file), searchKey, *grepFlagState.caseInsensitive, *grepFlagState.invertMatch)
+					if err != nil {
+						errorHandler(filepath, err)
+						osExitCode = 1
+					} else {
+						outputChannel <- outputType{fileName: filepath, output: fileOutput}
+					}
+				}(filepath, grepFlagState)
+			}
+			wg.Wait()
+			close(outputChannel)
+			for msg := range outputChannel {
+				if len(grepFlagState.outputFlag) > 0 {
+					err := WriteToFile(grepFlagState.outputFlag, msg.output)
+					if err != nil {
+						errorHandler(msg.fileName, err)
+						osExitCode = 1
+					}
+				} else {
+					if len(fileList) > 1 {
+						printOnStdOut(msg.fileName, msg.output)
+					} else {
+						printOnStdOut("", msg.output)
+					}
+				}
+			}
+			// wg.Wait()
 		}
 	}
 	os.Exit(osExitCode)
