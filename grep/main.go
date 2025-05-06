@@ -32,9 +32,9 @@ type flagState struct {
 	invertMatch     bool
 	recursive       bool
 	output          string
-	// afterContext    int
-	// beforeContext   int
-	// context         int
+	afterContext    int
+	beforeContext   int
+	context         int
 }
 
 // var grepFlagState flagState
@@ -142,7 +142,7 @@ func flagParser() (string, []string, flagState, error) {
 	if !flag.Parsed() {
 		return searchKey, fileList, grepFlagState, ErrInvalidFlags
 	}
-	grepFlagState = flagState{caseInsensitive: *caseInsensitiveFlag, invertMatch: *invertMatchFlag, output: *outputFlag, recursive: *recursiveFlag, afterContext: *afterContextFlag, beforeContext: *beforeContextFlag}
+	grepFlagState = flagState{caseInsensitive: *caseInsensitiveFlag, invertMatch: *invertMatchFlag, output: *outputFlag, recursive: *recursiveFlag}
 	searchKey = flag.Arg(0)
 	if flag.NArg() > 1 {
 		fileList = flag.Args()[1:]
