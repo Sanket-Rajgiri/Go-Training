@@ -24,7 +24,7 @@ var (
 	ErrPermissionDenied = errors.New("permission denied")
 	ErrFileNotExist     = errors.New("no such file or directory")
 	ErrInvalidFlags     = errors.New("invalid flags passed")
-	ErrFileExists       = errors.New("file already exists !")
+	ErrFileExists       = errors.New("file already exists")
 )
 
 type flagState struct {
@@ -47,31 +47,24 @@ func errorHandler(filepath string, err error) {
 	}
 }
 
-func search(reader io.Reader, key string, caseInsensitive, invertMatch bool) ([]string, error) {
+func SearchString(line, key string, CaseInsensitive, invertMatch bool) bool {
+	if CaseInsensitive {
+		line = strings.ToLower(line)
+		key = strings.ToLower(key)
+	}
+	if strings.Contains(line, key) != invertMatch {
+		return true
+	}
+	return false
+}
+
+func fileProcessor(reader io.Reader, key string, caseInsensitive, invertMatch bool) ([]string, error) {
 	var output []string
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if invertMatch {
-			if caseInsensitive {
-				if !strings.Contains(strings.ToLower(line), strings.ToLower(key)) {
-					output = append(output, line)
-				}
-			} else {
-				if !strings.Contains(line, key) {
-					output = append(output, line)
-				}
-			}
-		} else {
-			if caseInsensitive {
-				if strings.Contains(strings.ToLower(line), strings.ToLower(key)) {
-					output = append(output, line)
-				}
-			} else {
-				if strings.Contains(line, key) {
-					output = append(output, line)
-				}
-			}
+		if SearchString(line, key, caseInsensitive, invertMatch) {
+			output = append(output, line)
 		}
 	}
 
@@ -123,7 +116,20 @@ func openFile(filepath, searchKey string, grepFlagState *flagState) ([]string, e
 		}
 	}
 	defer file.Close()
-	return search(file, searchKey, grepFlagState.caseInsensitive, grepFlagState.invertMatch)
+	return fileProcessor(file, searchKey, grepFlagState.caseInsensitive, grepFlagState.invertMatch)
+}
+
+func processStdin(reader io.Reader, key string, flags flagState, bufWriter io.Writer) error {
+	scanner := bufio.NewScanner(reader)
+	writer := bufio.NewWriter(bufWriter)
+	defer writer.Flush()
+	for scanner.Scan() {
+		line := scanner.Text()
+		if SearchString(line, key, flags.caseInsensitive, flags.invertMatch) {
+			fmt.Fprintln(writer, line)
+		}
+	}
+	return scanner.Err()
 }
 
 func flagParser() (string, []string, flagState, error) {
@@ -197,12 +203,10 @@ func main() {
 		osExitCode = 1
 	} else {
 		if len(fileList) < 1 {
-			output, err := search(os.Stdin, searchKey, grepFlagState.caseInsensitive, grepFlagState.invertMatch)
+			err := processStdin(os.Stdin, searchKey, grepFlagState, os.Stdout)
 			if err != nil {
 				errorHandler("", err)
 				osExitCode = 1
-			} else {
-				printOnStdOut("", output)
 			}
 		} else {
 			var wg sync.WaitGroup
