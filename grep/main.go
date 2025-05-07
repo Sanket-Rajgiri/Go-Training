@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"container/list"
 	"errors"
 	"path/filepath"
 	"sync"
@@ -34,7 +35,6 @@ type flagState struct {
 	output          string
 	afterContext    int
 	beforeContext   int
-	context         int
 }
 
 // var grepFlagState flagState
@@ -58,16 +58,37 @@ func SearchString(line, key string, CaseInsensitive, invertMatch bool) bool {
 	return false
 }
 
-func fileProcessor(reader io.Reader, key string, caseInsensitive, invertMatch bool) ([]string, error) {
+func fileProcessor(reader io.Reader, key string, grepFlagState *flagState) ([]string, error) {
 	var output []string
 	scanner := bufio.NewScanner(reader)
+	beforeQueue := list.New()
+	matched := false
+	var afterContextTracker int
 	for scanner.Scan() {
 		line := scanner.Text()
-		if SearchString(line, key, caseInsensitive, invertMatch) {
+		if SearchString(line, key, grepFlagState.caseInsensitive, grepFlagState.invertMatch) {
+			for e := beforeQueue.Front(); e != nil; e = e.Next() {
+				output = append(output, e.Value.(string))
+			}
+			beforeQueue.Init()
+			matched = true
 			output = append(output, line)
+			afterContextTracker = 0
+		} else if matched {
+			if afterContextTracker == grepFlagState.afterContext {
+				matched = false
+			} else if afterContextTracker < grepFlagState.afterContext {
+				output = append(output, line)
+				afterContextTracker++
+			}
+		}
+		if grepFlagState.beforeContext > 0 && !matched {
+			if beforeQueue.Len() == grepFlagState.beforeContext {
+				beforeQueue.Remove(beforeQueue.Front())
+			}
+			beforeQueue.PushBack(line)
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
@@ -116,17 +137,39 @@ func openFile(filepath, searchKey string, grepFlagState *flagState) ([]string, e
 		}
 	}
 	defer file.Close()
-	return fileProcessor(file, searchKey, grepFlagState.caseInsensitive, grepFlagState.invertMatch)
+	return fileProcessor(file, searchKey, grepFlagState)
 }
 
-func processStdin(reader io.Reader, key string, flags flagState, bufWriter io.Writer) error {
+func processStdin(reader io.Reader, key string, grepFlagstate *flagState, bufWriter io.Writer) error {
 	scanner := bufio.NewScanner(reader)
 	writer := bufio.NewWriter(bufWriter)
 	defer writer.Flush()
+	beforeQueue := list.New()
+	matched := false
+	var afterContextTracker int
 	for scanner.Scan() {
 		line := scanner.Text()
-		if SearchString(line, key, flags.caseInsensitive, flags.invertMatch) {
-			fmt.Fprintln(writer, line)
+		if SearchString(line, key, grepFlagstate.caseInsensitive, grepFlagstate.invertMatch) {
+			for e := beforeQueue.Front(); e != nil; e = e.Next() {
+				writer.WriteString(e.Value.(string) + "\n")
+			}
+			beforeQueue.Init()
+			matched = true
+			writer.WriteString(line + "\n")
+			afterContextTracker = 0
+		} else if matched {
+			if afterContextTracker < grepFlagstate.afterContext {
+				writer.WriteString(line + "\n")
+				afterContextTracker++
+			} else if afterContextTracker == grepFlagstate.afterContext {
+				matched = false
+			}
+		}
+		if grepFlagstate.beforeContext > 0 && !matched {
+			if beforeQueue.Len() == grepFlagstate.beforeContext {
+				beforeQueue.Remove(beforeQueue.Front())
+			}
+			beforeQueue.PushBack(line)
 		}
 	}
 	return scanner.Err()
@@ -140,15 +183,29 @@ func flagParser() (string, []string, flagState, error) {
 	invertMatchFlag := flag.BoolP("invert-match", "v", false, "Invert sense of matching, to select non-matching lines")
 	recursiveFlag := flag.BoolP("recursive", "r", false, "like --directories=recurse")
 	outputFlag := flag.StringP("output", "o", "", " grep [options...] [files....] -o [filename]")
-	// afterContextFlag := flag.IntP("after-context", "A", 0, "print NUM lines of trailing context")
-	// beforeContextFlag := flag.IntP("before-context", "B", 0, "print NUM lines of leading context")
-	// contextFlag := flag.IntP("context", "C", 0, "print NUM lines of output context")
+	afterContextFlag := flag.IntP("after-context", "A", 0, "print NUM lines of trailing context")
+	beforeContextFlag := flag.IntP("before-context", "B", 0, "print NUM lines of leading context")
+	contextFlag := flag.IntP("context", "C", 0, "print NUM lines of output context")
 
 	flag.Parse()
 	if !flag.Parsed() {
 		return searchKey, fileList, grepFlagState, ErrInvalidFlags
 	}
-	grepFlagState = flagState{caseInsensitive: *caseInsensitiveFlag, invertMatch: *invertMatchFlag, output: *outputFlag, recursive: *recursiveFlag}
+	grepFlagState = flagState{
+		caseInsensitive: *caseInsensitiveFlag,
+		invertMatch:     *invertMatchFlag,
+		output:          *outputFlag,
+		recursive:       *recursiveFlag,
+	}
+
+	if *contextFlag > 0 {
+		grepFlagState.afterContext = *contextFlag
+		grepFlagState.beforeContext = *contextFlag
+	} else {
+		grepFlagState.afterContext = *afterContextFlag
+		grepFlagState.beforeContext = *beforeContextFlag
+	}
+
 	searchKey = flag.Arg(0)
 	if flag.NArg() > 1 {
 		fileList = flag.Args()[1:]
@@ -203,7 +260,7 @@ func main() {
 		osExitCode = 1
 	} else {
 		if len(fileList) < 1 {
-			err := processStdin(os.Stdin, searchKey, grepFlagState, os.Stdout)
+			err := processStdin(os.Stdin, searchKey, &grepFlagState, os.Stdout)
 			if err != nil {
 				errorHandler("", err)
 				osExitCode = 1
@@ -244,8 +301,11 @@ func main() {
 						osExitCode = 1
 					}
 				} else {
-					if len(fileList) > 1 {
+					if len(fileList) > 1 && len(msg.output) > 0 {
 						printOnStdOut(msg.fileName, msg.output)
+						if grepFlagState.afterContext > 0 || grepFlagState.beforeContext > 0 {
+							fmt.Println("--")
+						}
 					} else {
 						printOnStdOut("", msg.output)
 					}
