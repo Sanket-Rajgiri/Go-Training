@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -13,10 +14,25 @@ func Test_OpenFile(t *testing.T) {
 		keyword       string
 		want          []string
 		grepFlagState flagState
-		wantErr       bool
+		wantErr       error
 	}
 
 	tests := []test{
+		{
+			name:     "Non-Existent File",
+			filepath: "testFiles/sanket.txt",
+			wantErr:  ErrFileNotExist,
+		},
+		{
+			name:     "Folder Path",
+			filepath: "testFiles/",
+			wantErr:  ErrIsDirectory,
+		},
+		{
+			name:     "Folder Path",
+			filepath: "testFiles/do-not-read.txt",
+			wantErr:  ErrPermissionDenied,
+		},
 		{
 			name:          "SimpleTest1",
 			filepath:      "testFiles/Simple.txt",
@@ -26,13 +42,13 @@ func Test_OpenFile(t *testing.T) {
 		},
 		{
 			name:     "Case Sensitive",
-			filepath: "testFiles/case-sensitive.txt",
+			filepath: "testFiles/case-insensitive.txt",
 			keyword:  "Error",
 			want:     []string{"Error: Something failed"},
 		},
 		{
 			name:     "Case Insensitive",
-			filepath: "testFiles/case-sensitive.txt",
+			filepath: "testFiles/case-insensitive.txt",
 			keyword:  "error",
 			want: []string{
 				"Error: Something failed",
@@ -111,16 +127,30 @@ func Test_OpenFile(t *testing.T) {
 				"Line 7: Follow-up line",
 			},
 		},
+		{
+			name:          "Count",
+			filepath:      "testFiles/Simple.txt",
+			keyword:       "some",
+			grepFlagState: flagState{caseInsensitive: true, count: true},
+			want:          []string{"2"},
+		},
+		{
+			name:          "Count with inverse",
+			filepath:      "testFiles/case-insensitive.txt",
+			keyword:       "some",
+			grepFlagState: flagState{caseInsensitive: true, count: true, invertMatch: true},
+			want:          []string{"3"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := openFile(tt.filepath, tt.keyword, &tt.grepFlagState)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("search() error = %v, wantErr %v", err, tt.wantErr)
+			if err != tt.wantErr {
+				t.Errorf(" openFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("search() = %v, want %v", got, tt.want)
+				t.Errorf("openFile(), got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -224,6 +254,20 @@ func Test_processStdin(t *testing.T) {
 				"Line 7: Follow-up line",
 			},
 		},
+		{
+			name:          "Count",
+			inputString:   "Error: Something failed\nWarning: Low disk space\nInfo: All systems operational\nerror: case-insensitive test\n",
+			keyword:       "error",
+			grepFlagState: flagState{caseInsensitive: true, count: true},
+			want:          []string{"2"},
+		},
+		{
+			name:          "Count with inverse",
+			inputString:   "apple\nbanana\ngrapefruit\npineapple\nmango\n",
+			keyword:       "pineapple",
+			grepFlagState: flagState{caseInsensitive: true, count: true, invertMatch: true},
+			want:          []string{"4"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -242,7 +286,46 @@ func Test_processStdin(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("processStdin() = %v, want %v", got, tt.want)
+				t.Errorf("processStdin() , got= %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_recursiveFileList(t *testing.T) {
+	type test struct {
+		name      string
+		inputPath string
+		wantErr   error
+		want      []string
+	}
+	tests := []test{
+		{
+			name:      "Path Exists",
+			inputPath: "testFiles",
+			want: []string{
+				"testFiles/Simple.txt",
+				"testFiles/context.txt",
+				"testFiles/invert-match.txt",
+				"testFiles/case-insensitive.txt",
+				"testFiles/context2.txt",
+				"testFiles/multiline.txt",
+				"testFiles/do-not-read.txt",
+			},
+		},
+		{
+			name:      "Path Not Exists",
+			inputPath: "sanket",
+			want:      []string{"sanket"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := recursiveFileList(tt.inputPath)
+			sort.Strings(got)
+			sort.Strings(tt.want)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("recursiveFile(), got=%v, want=%v\n", got, tt.want)
 			}
 		})
 	}
