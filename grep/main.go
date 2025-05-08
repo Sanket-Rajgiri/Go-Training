@@ -254,7 +254,7 @@ func printOnStdOut(filepath string, output []string) {
 	}
 }
 
-func WriteToFile(filepath string, output []string) error {
+func writeToFile(filepath string, output []string) error {
 	_, err := os.Stat(filepath)
 	if err == nil {
 		return ErrFileExists
@@ -312,7 +312,7 @@ func main() {
 			close(outputChannel)
 			for msg := range outputChannel {
 				if len(grepFlagState.output) > 0 {
-					err := WriteToFile(grepFlagState.output, msg.output)
+					err := writeToFile(grepFlagState.output, msg.output)
 					if err != nil {
 						errorHandler(msg.fileName, err)
 						osExitCode = 1

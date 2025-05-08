@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -329,4 +331,65 @@ func Test_recursiveFileList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_writeToFile(t *testing.T) {
+	type test struct {
+		filename    string
+		inputString []string
+		wantErr     error
+	}
+	// tests := []test{
+	// 	{
+	// 		name:        "File Create and Write",
+	// 		filename:    "testFiles/sanket.txt",
+	// 		inputString: []string{"line1", "line2", "line3"},
+	// 	},
+	// 	{
+	// 		name:        "FileAlreadyExists",
+	// 		filename:    "testFiles/sanket.txt",
+	// 		wantErr:     ErrFileExists,
+	// 		inputString: []string{},
+	// 	},
+	// }
+	t.Run("File Create and Write", func(t *testing.T) {
+		tt := test{
+			filename:    "sanket.txt",
+			inputString: []string{"line1", "line2", "line3"},
+		}
+		err := writeToFile(tt.filename, tt.inputString)
+		defer os.Remove(tt.filename)
+		if err != tt.wantErr {
+			t.Errorf("writeToFile() gotErr=%v, expectedErr=%v", err, tt.wantErr)
+		}
+		file, osOpenErr := os.Open(tt.filename)
+		if err != nil {
+			t.Errorf("writeToFile() gotErr=%v", osOpenErr)
+		}
+		var fileReader []string
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			fileReader = append(fileReader, scanner.Text())
+		}
+		if scannerErr := scanner.Err(); scannerErr != nil {
+			t.Errorf("writeToFile() gotErr=%v", scannerErr)
+		}
+		sort.Strings(tt.inputString)
+		sort.Strings(fileReader)
+		if !reflect.DeepEqual(tt.inputString, fileReader) {
+			t.Errorf("writeToFile() got=%v, want=%v", fileReader, tt.inputString)
+		}
+
+	})
+	t.Run("File Already Exists", func(t *testing.T) {
+		tt := test{
+			filename: "testFiles/Simple.txt",
+			// inputString: []string{"line1", "line2", "line3"},
+			wantErr: ErrFileExists,
+		}
+		err := writeToFile(tt.filename, tt.inputString)
+		if err != tt.wantErr {
+			t.Errorf("writeToFile() gotErr=%v, expectedErr=%v", err, tt.wantErr)
+		}
+	})
 }
