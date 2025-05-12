@@ -1,86 +1,89 @@
 package handlers
 
 import (
-	"fmt"
+	"albums/database"
+	"albums/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-type album struct {
-	ID     string  `json:"id"`
-	Title  string  `json:"title"`
-	Artist string  `json:"artist"`
-	Price  float64 `json:"price"`
-}
-
-var albums = []album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
+// type album struct {
+// 	ID     string  `json:"id"`
+// 	Title  string  `json:"title"`
+// 	Artist string  `json:"artist"`
+// 	Price  float64 `json:"price"`
+// }
 
 func GetAlbums(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, albums)
+	var albums []models.Album
+	if err := database.DB.Find(&albums).Error; err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch albums"})
+	}
+	c.IndentedJSON(http.StatusOK, gin.H{"albums": albums})
 }
 func GetAlbumByID(c *gin.Context) {
-	id := c.Param("id")
-
-	for _, album := range albums {
-		if album.ID == id {
-			c.IndentedJSON(http.StatusFound, album)
-			return
-		}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+	var album models.Album
+	if err := database.DB.First(&album, id); err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, gin.H{"album": album})
+
 }
 
 func AddAlbums(c *gin.Context) {
-	var newAlbum album
+	var newAlbum models.Album
 	if err := c.BindJSON(&newAlbum); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	albums = append(albums, newAlbum)
+	if err := database.DB.Create(&newAlbum).Error; err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not add album",
+			"message": err})
+		return
+	}
 	c.IndentedJSON(http.StatusCreated, gin.H{"message": "Album Added", "ID": newAlbum.ID})
 }
 
 func UpdatePrice(c *gin.Context) {
-	var updateAlbum album
+	var existingAlbum, updateAlbum models.Album
 	if err := c.BindJSON(&updateAlbum); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-
-	for i, album := range albums {
-		if album.ID == updateAlbum.ID {
-			if album.Artist == updateAlbum.Artist && album.Title == updateAlbum.Title {
-				albums[i] = updateAlbum
-				c.IndentedJSON(http.StatusOK, gin.H{"message": "Price Updated for Album", "ID": updateAlbum.ID})
-				return
-			} else {
-				c.IndentedJSON(http.StatusPreconditionFailed, gin.H{"error": "Album's details does not match"})
-				return
-			}
-		}
+	if err := database.DB.First(&existingAlbum, updateAlbum.ID, updateAlbum.Artist, updateAlbum.Title).Error; err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "album not found"})
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+	existingAlbum.Price = updateAlbum.Price
+	if err := database.DB.Save(&existingAlbum).Error; err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not update album",
+			"message": err})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "Album Price Updated Successfully"})
 }
 
 func DeleteAlbum(c *gin.Context) {
-	id := c.Param("id")
-	var sliceIndex = -1
-
-	for index, album := range albums {
-		if album.ID == id {
-			sliceIndex = index
-			break
-		}
-	}
-	if sliceIndex < 0 {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": fmt.Sprintf("No album exists with ID %s", id)})
+	var album models.Album
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	albums = append(albums[:sliceIndex], albums[sliceIndex+1:]...)
-	c.IndentedJSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Album deleted with ID %s", id)})
+	if err := database.DB.First(&album, id).Error; err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "album not found"})
+		return
+	}
+	if err := database.DB.Delete(&album).Error; err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete album"})
+	}
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "album deleted successfully"})
 }
