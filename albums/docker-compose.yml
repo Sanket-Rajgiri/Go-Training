@@ -1,0 +1,22 @@
+services:
+  mysql-db:
+    image: mysql:8.0-debian
+    container_name: mysql-db
+    # ports:
+    #   - "3306:3306"  # Map MySQL port to the host
+    environment:
+      MYSQL_ROOT_PASSWORD: "admin"
+      MYSQL_DATABASE: "test"
+    healthcheck:
+      test: ["CMD-SHELL","mysqladmin ping --user=root --password=admin"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - mysql_data:/var/lib/mysql  # Persist MySQL data
+      - mysql_conf:/etc/mysql/conf.d  # Add custom MySQL configuration if needed
+    network_mode: host
+volumes:
+  mysql_data:
+  mysql_conf:

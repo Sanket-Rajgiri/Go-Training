@@ -10,7 +10,7 @@ import (
 
 var DB *gorm.DB
 
-func Init() {
+func SqliteInit() {
 	var albums = []models.Album{
 		{Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
 		{Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
@@ -33,7 +33,7 @@ func Init() {
 	log.Println("Initialised Successfully.")
 }
 
-func Connect() {
+func SqliteConnect() {
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Error Connecting DB : %s", err)
