@@ -1,6 +1,7 @@
-
-load_env:
-	@eval $(cat .env | sed 's/^/export /')
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
 
 stop_db: 
 	@docker-compose down
@@ -10,13 +11,13 @@ atlas_install:
 	@curl -sSf https://atlasgo.sh | sh
 
 atlas_diff: 
-	@altas migrate diff --env gorm
+	@atlas migrate diff --env gorm
 
 atlas_apply:
-	@atlas migrate apply --env gorm
+	@atlas migrate apply --env gorm  --url ${DB_URL}
 
 atlas_status:
-	@atlas migrate status --env gorm
+	@atlas migrate status --env gorm --url ${DB_URL}
 
 run_app:
 	@go run .

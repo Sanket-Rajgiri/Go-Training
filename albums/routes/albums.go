@@ -2,12 +2,13 @@ package routes
 
 import (
 	"albums/handlers"
+	"albums/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterAlbumRoutes(routerGroup *gin.RouterGroup) {
-	albums := routerGroup.Group("/albums")
+func RegisterAlbumRoutes(router *gin.Engine) {
+	albums := router.Group("/albums", middleware.JwtAuthMiddleware())
 	albums.GET("/", handlers.GetAlbums)
 	albums.GET("/:id", handlers.GetAlbumByID)
 	albums.POST("/", handlers.AddAlbums)

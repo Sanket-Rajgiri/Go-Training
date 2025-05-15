@@ -2,10 +2,13 @@ package main
 
 import (
 	"albums/database"
+	"albums/middleware"
 	"albums/routes"
+	"albums/service"
 	"errors"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,11 +40,11 @@ func loadEnv() (map[string]string, error) {
 	return envVariables, nil
 }
 
-func main() {
-
-	router := gin.Default()
-	rootPath := router.Group("/")
-	routes.RegisterAlbumRoutes(rootPath)
+func routerSetup() *gin.Engine {
+	router := gin.New()
+	router.Use(middleware.LoggerMiddleware(), gin.Recovery())
+	routes.RegisterAlbumRoutes(router)
+	routes.RegisterLoginRoutes(router)
 	envVars, err := loadEnv()
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -52,7 +55,13 @@ func main() {
 	} else {
 		database.MysqlConnect(envVars["DB_HOST"], envVars["DB_USER"], envVars["DB_PASSWORD"], envVars["DB_NAME"])
 	}
-	err = router.Run("localhost:8080")
+	return router
+}
+
+func main() {
+	service.TokenCleaner(time.Minute)
+	router := routerSetup()
+	err := router.Run("localhost:8080")
 	if err != nil {
 		log.Fatalf("Error Starting Server : %v", err)
 	}

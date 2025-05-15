@@ -12,7 +12,6 @@ data "external_schema" "gorm" {
 
 
 env "gorm" {
-    url = "mysql://root:admin@127.0.0.1:3306/test"
   src = data.external_schema.gorm.url
   dev = "docker://mysql/8/dev"
   migration {
