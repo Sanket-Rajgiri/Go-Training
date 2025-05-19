@@ -9,28 +9,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// type album struct {
-// 	ID     string  `json:"id"`
-// 	Title  string  `json:"title"`
-// 	Artist string  `json:"artist"`
-// 	Price  float64 `json:"price"`
-// }
+//	type album struct {
+//		ID     string  `json:"id"`
+//		Title  string  `json:"title"`
+//		Artist string  `json:"artist"`
+//		Price  float64 `json:"price"`
+//	}
+type AlbumHandler struct {
+	AlbumService service.AlbumsService
+}
 
-func GetAlbums(c *gin.Context) {
-	albums, err := service.GetAlbums()
+func (handler *AlbumHandler) GetAlbums(c *gin.Context) {
+	albums, err := handler.AlbumService.GetAlbums()
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.IndentedJSON(http.StatusOK, gin.H{"albums": albums})
 }
-func GetAlbumByID(c *gin.Context) {
+func (handler *AlbumHandler) GetAlbumByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	album, err := service.GetAlbumByID(uint(id))
+	album, err := handler.AlbumService.GetAlbumByID(uint(id))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -39,13 +42,13 @@ func GetAlbumByID(c *gin.Context) {
 
 }
 
-func AddAlbums(c *gin.Context) {
+func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
 	var newAlbum models.Album
 	if err := c.BindJSON(&newAlbum); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	id, err := service.AddAlbums(newAlbum)
+	id, err := handler.AlbumService.AddAlbums(newAlbum)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -54,13 +57,13 @@ func AddAlbums(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, gin.H{"message": "Album Added", "ID": id})
 }
 
-func UpdatePrice(c *gin.Context) {
+func (handler *AlbumHandler) UpdatePrice(c *gin.Context) {
 	var updateAlbum models.Album
 	if err := c.BindJSON(&updateAlbum); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	if _, err := service.UpdatePrice(updateAlbum); err != nil {
+	if _, err := handler.AlbumService.UpdatePrice(updateAlbum); err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 
@@ -68,13 +71,13 @@ func UpdatePrice(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Album Price Updated Successfully"})
 }
 
-func DeleteAlbum(c *gin.Context) {
+func (handler *AlbumHandler) DeleteAlbum(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	deletedAlbumID, err := service.DeleteAlbum(uint(id))
+	deletedAlbumID, err := handler.AlbumService.DeleteAlbum(uint(id))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -97,7 +97,7 @@ func RoleValidationMiddleware() gin.HandlerFunc {
 	}
 }
 
-func DBAuthMiddleware() gin.HandlerFunc {
+func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var credentials loginPayload
 		if err := c.ShouldBindBodyWithJSON(&credentials); err != nil {

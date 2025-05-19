@@ -7,11 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterAlbumRoutes(router *gin.Engine) {
+func RegisterAlbumRoutes(router *gin.Engine, handler *handlers.AlbumHandler) {
 	albums := router.Group("/albums", middleware.JwtAuthMiddleware(), middleware.RoleValidationMiddleware())
-	albums.GET("/", handlers.GetAlbums)
-	albums.GET("/:id", handlers.GetAlbumByID)
-	albums.POST("/", handlers.AddAlbums)
-	albums.PATCH("/", handlers.UpdatePrice)
-	albums.DELETE("/:id", handlers.DeleteAlbum)
+	albums.GET("/", handler.GetAlbums)
+	albums.GET("/:id", handler.GetAlbumByID)
+	albums.POST("/", handler.AddAlbums)
+	albums.PATCH("/", handler.UpdatePrice)
+	albums.DELETE("/:id", handler.DeleteAlbum)
 }

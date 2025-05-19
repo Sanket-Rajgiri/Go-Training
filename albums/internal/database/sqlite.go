@@ -2,15 +2,14 @@ package database
 
 import (
 	"albums/internal/models"
+	"fmt"
 	"log"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
-func SqliteInit() {
+func SqliteInit(DB *gorm.DB) error {
 	var albums = []models.Album{
 		{Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
 		{Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
@@ -18,27 +17,25 @@ func SqliteInit() {
 	}
 	if DB.Migrator().HasTable(&models.Album{}) {
 		if err := DB.Migrator().DropTable(&models.Album{}); err != nil {
-			log.Printf("Error Dropping Table: %s", err)
-			return
+			return fmt.Errorf("error dropping table: %s", err)
 		}
 	}
 	if err := DB.Migrator().CreateTable(&models.Album{}); err != nil {
-		log.Printf("Error Creating Table: %s", err)
-		return
+		return fmt.Errorf("Error Creating Table: %s", err)
 	}
 	if err := DB.Create(&albums).Error; err != nil {
-		log.Printf("Error Initialising DB: %s", err)
-		return
+		return fmt.Errorf("Error Initialising DB: %s", err)
+
 	}
 	log.Println("Initialised Successfully.")
+	return nil
 }
 
-func SqliteConnect() {
+func SqliteConnect() (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Error Connecting DB : %s", err)
-		return
+		return nil, fmt.Errorf("Error Connecting DB : %s", err)
 	}
-	DB = db
 	log.Println("Connected to Database")
+	return db, nil
 }
