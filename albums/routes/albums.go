@@ -8,7 +8,7 @@ import (
 )
 
 func RegisterAlbumRoutes(router *gin.Engine) {
-	albums := router.Group("/albums", middleware.JwtAuthMiddleware())
+	albums := router.Group("/albums", middleware.JwtAuthMiddleware(), middleware.RoleValidationMiddleware())
 	albums.GET("/", handlers.GetAlbums)
 	albums.GET("/:id", handlers.GetAlbumByID)
 	albums.POST("/", handlers.AddAlbums)

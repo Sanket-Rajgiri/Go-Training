@@ -8,6 +8,8 @@ import (
 )
 
 func RegisterLoginRoutes(router *gin.Engine) {
-	login := router.Group("/login", middleware.BasicAuthMiddleware())
-	login.GET("/", handlers.LoginHandler)
+	login := router.Group("/login")
+	// login.GET("/", handlers.LoginHandler, middleware.BasicAuthMiddleware())
+	login.POST("/", middleware.DBAuthMiddleware(), handlers.LoginHandler)
+	login.POST("/register", handlers.RegisterHandler)
 }
