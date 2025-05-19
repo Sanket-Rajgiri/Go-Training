@@ -82,6 +82,75 @@ func TestGetAlbums(t *testing.T) {
 	}
 }
 
+func TestGetAlbumByID(t *testing.T) {
+	type response struct {
+		Album models.Album `json:"album"`
+	}
+	tests := []struct {
+		name         string
+		paramID      string
+		mockResponse models.Album
+		mockError    error
+		expectedCode int
+	}{
+		{
+			name:    "Success",
+			paramID: "1",
+			mockResponse: models.Album{
+				Model:  gorm.Model{ID: 1}, // if you're using gorm.Model
+				Title:  "Test Album",
+				Artist: "Test Artist",
+				Price:  99.99,
+			},
+			mockError:    nil,
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "Invalid ID",
+			paramID:      "abc",
+			mockError:    errors.New("Invalid ID"),
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "InternalError",
+			paramID:      "2",
+			mockResponse: models.Album{},
+			mockError:    errors.New("db error"),
+			expectedCode: http.StatusInternalServerError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			mockService := new(mocks.AlbumService)
+			if id, err := strconv.Atoi(tt.paramID); err == nil {
+				mockService.On("GetAlbumByID", uint(id)).Return(tt.mockResponse, tt.mockError)
+			}
+
+			handler := handlers.AlbumHandler{AlbumService: mockService}
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/albums/"+tt.paramID, nil)
+			c.Params = []gin.Param{{Key: "id", Value: tt.paramID}}
+
+			handler.GetAlbumByID(c)
+			assert.Equal(t, tt.expectedCode, w.Code)
+
+			if tt.mockError == nil {
+				var resp response
+				err := json.Unmarshal(w.Body.Bytes(), &resp)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.mockResponse.ID, resp.Album.ID)
+				assert.Equal(t, tt.mockResponse.Title, resp.Album.Title)
+				assert.Equal(t, tt.mockResponse.Artist, resp.Album.Artist)
+				assert.Equal(t, tt.mockResponse.Price, resp.Album.Price)
+			} else {
+				assert.Contains(t, w.Body.String(), `"error": "`+tt.mockError.Error()+`"`)
+			}
+		})
+	}
+}
+
 func TestAddAlbums(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
