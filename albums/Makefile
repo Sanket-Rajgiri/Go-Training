@@ -21,3 +21,6 @@ atlas_status:
 
 run_app:
 	@go run .
+
+test_app: 
+	@go test ./internal/tests/*
