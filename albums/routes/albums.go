@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"albums/handlers"
-	"albums/middleware"
+	"albums/internal/handlers"
+	"albums/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )

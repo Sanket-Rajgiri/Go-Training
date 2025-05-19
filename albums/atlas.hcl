@@ -15,7 +15,7 @@ env "gorm" {
   src = data.external_schema.gorm.url
   dev = "docker://mysql/8/dev"
   migration {
-    dir = "file://migrations"
+    dir = "file://internal/database/migrations"
   }
   format {
     migrate {

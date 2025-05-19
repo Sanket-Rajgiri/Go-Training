@@ -1,8 +1,8 @@
 package service
 
 import (
-	"albums/database"
-	"albums/models"
+	"albums/internal/database"
+	"albums/internal/models"
 	"os"
 	"strconv"
 	"time"

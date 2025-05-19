@@ -1,10 +1,10 @@
 package main
 
 import (
-	"albums/database"
-	"albums/middleware"
+	"albums/internal/database"
+	"albums/internal/middleware"
+	"albums/internal/service"
 	"albums/routes"
-	"albums/service"
 	"errors"
 	"log"
 	"os"

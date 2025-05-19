@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"albums/service"
+	"albums/internal/service"
 	"net/http"
 	"os"
 	"strconv"

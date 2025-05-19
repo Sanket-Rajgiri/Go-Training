@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"albums/models"
-	"albums/service"
+	"albums/internal/models"
+	"albums/internal/service"
 	"net/http"
 	"strconv"
 

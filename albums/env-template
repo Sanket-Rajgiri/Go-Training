@@ -4,3 +4,5 @@ DB_PASSWORD=admin
 DB_HOST=127.0.0.1
 DB_NAME=test
 DB_URL=mysql://root:admin@127.0.0.1:3306/test
+JWT_SCRET=abcd
+JWT_EXPIRY_MINUTES=5

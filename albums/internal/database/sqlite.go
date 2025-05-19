@@ -1,7 +1,7 @@
 package database
 
 import (
-	"albums/models"
+	"albums/internal/models"
 	"log"
 
 	"gorm.io/driver/sqlite"
