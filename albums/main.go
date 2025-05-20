@@ -5,6 +5,14 @@ import (
 	"log"
 )
 
+//	@title						Go Gin Rest API
+//	@version					1.0
+//	@description				A rest API in Go using Gin framework
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Enter your bearer token in the format **Bearer &lt;token&gt;**
+
 func main() {
 
 	router := config.RouterSetup()

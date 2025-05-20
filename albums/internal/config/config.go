@@ -1,6 +1,7 @@
 package config
 
 import (
+	_ "albums/docs" // this line is REQUIRED for Swagger to find the docs package
 	"albums/internal/database"
 	"albums/internal/handlers"
 	"albums/internal/middleware"
@@ -9,6 +10,9 @@ import (
 	"errors"
 	"log"
 	"os"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -74,6 +78,7 @@ func RouterSetup() *gin.Engine {
 	}
 	router := gin.New()
 	router.Use(middleware.LoggerMiddleware(), gin.Recovery())
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	albumService := &service.AlbumServiceImpl{DB: db}
 	albumHandler := &handlers.AlbumHandler{AlbumService: albumService}
 	routes.RegisterAlbumRoutes(router, albumHandler)

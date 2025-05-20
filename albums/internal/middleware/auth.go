@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"albums/internal/models"
 	"albums/internal/service"
 	"net/http"
 	"os"
@@ -23,11 +24,6 @@ var RoleMapping = map[string][]string{
 		"GET /albums/:id",
 		"POST /albums/",
 		"PATCH /albums/"},
-}
-
-type loginPayload struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -99,7 +95,7 @@ func RoleValidationMiddleware() gin.HandlerFunc {
 
 func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var credentials loginPayload
+		var credentials models.LoginPayload
 		if err := c.ShouldBindBodyWithJSON(&credentials); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid json", "msg": err.Error()})
 			return

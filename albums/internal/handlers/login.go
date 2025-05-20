@@ -12,6 +12,19 @@ type LoginHandler struct {
 	LoginService service.LoginService
 }
 
+// Login godoc
+//
+//	@Summary		Login and get a JWT Token
+//	@Description	Authenticates a user and returns a signed JWT token.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			credentials	body	models.LoginPayload	true	"Login Credentials"
+//	@Success		200	{object}	map[string]interface{}	"Login successful"
+//	@Failure		400	{object}	map[string]string		"Bad request"
+//	@Failure		404	{object}	map[string]string		"User not found"
+//	@Failure		500	{object}	map[string]string		"Internal server error"
+//	@Router			/login [post]
 func (handler *LoginHandler) Login(c *gin.Context) {
 	userID, exists := c.Get("UserID")
 	if !exists || len(userID.(string)) == 0 {
@@ -26,6 +39,18 @@ func (handler *LoginHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Loggedin", "token": token, "ID": userID})
 }
 
+// Register godoc
+//
+//	@Summary		Register a new user
+//	@Description	Creates a new user account and returns user details.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			user	body		models.UserSwagger	true	"New user details"
+//	@Success		200		{object}	map[string]interface{}	"User created successfully"
+//	@Failure		400		{object}	map[string]string		"Invalid JSON"
+//	@Failure		500		{object}	map[string]string		"Failed to create user"
+//	@Router			/register [post]
 func (handler *LoginHandler) Register(c *gin.Context) {
 	var newUser models.Users
 	if err := c.ShouldBindBodyWithJSON(&newUser); err != nil {
