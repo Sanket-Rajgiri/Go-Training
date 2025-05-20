@@ -83,9 +83,6 @@ func TestGetAlbums(t *testing.T) {
 }
 
 func TestGetAlbumByID(t *testing.T) {
-	type response struct {
-		Album models.Album `json:"album"`
-	}
 	tests := []struct {
 		name         string
 		paramID      string
@@ -137,13 +134,13 @@ func TestGetAlbumByID(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.mockError == nil {
-				var resp response
+				var resp models.Album
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.mockResponse.ID, resp.Album.ID)
-				assert.Equal(t, tt.mockResponse.Title, resp.Album.Title)
-				assert.Equal(t, tt.mockResponse.Artist, resp.Album.Artist)
-				assert.Equal(t, tt.mockResponse.Price, resp.Album.Price)
+				assert.Equal(t, tt.mockResponse.ID, resp.ID)
+				assert.Equal(t, tt.mockResponse.Title, resp.Title)
+				assert.Equal(t, tt.mockResponse.Artist, resp.Artist)
+				assert.Equal(t, tt.mockResponse.Price, resp.Price)
 			} else {
 				assert.Contains(t, w.Body.String(), `"error": "`+tt.mockError.Error()+`"`)
 			}
