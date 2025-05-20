@@ -17,6 +17,6 @@ type Users struct {
 }
 
 type UserSwagger struct {
-	Username string `json:"username" binding:"required" gorm:"unique;not null;default null"`
+	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
