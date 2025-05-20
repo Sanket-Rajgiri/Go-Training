@@ -9,6 +9,7 @@ import (
 	"albums/routes"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 
 	swaggerFiles "github.com/swaggo/files"
@@ -67,7 +68,7 @@ func initDB(envVars map[string]string) (*gorm.DB, error) {
 	}
 	return db, nil
 }
-func RouterSetup() *gin.Engine {
+func RouterSetup() (*gin.Engine, *gorm.DB) {
 	envVars, err := loadEnv()
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -78,6 +79,10 @@ func RouterSetup() *gin.Engine {
 	}
 	router := gin.New()
 	router.Use(middleware.LoggerMiddleware(), gin.Recovery())
+
+	router.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+	})
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	albumService := &service.AlbumServiceImpl{DB: db}
 	albumHandler := &handlers.AlbumHandler{AlbumService: albumService}
@@ -86,5 +91,5 @@ func RouterSetup() *gin.Engine {
 	loginService := &service.LoginServiceImpl{DB: db}
 	loginHandler := &handlers.LoginHandler{LoginService: loginService}
 	routes.RegisterLoginRoutes(router, loginHandler, loginService)
-	return router
+	return router, db
 }
