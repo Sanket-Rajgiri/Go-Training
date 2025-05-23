@@ -7,6 +7,7 @@ import (
 	"albums/internal/metrics"
 	"albums/internal/middleware"
 	"albums/internal/service"
+	"albums/internal/traces"
 	"albums/routes"
 	"context"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"google.golang.org/grpc"
@@ -113,13 +115,22 @@ func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
 	if err != nil {
 		log.Fatalln("failed to create otel resource: ", err)
 	}
-	metrics.InitOTelMetrics(grpcConn, ctx, res)
+	err = metrics.InitOTelMetrics(grpcConn, ctx, res)
+	if err != nil {
+		log.Println(err)
+	}
+	err = traces.InitOtelTraces(grpcConn, ctx, res)
+	if err != nil {
+		log.Println(err)
+	}
 	router := gin.New()
 	router.Use(
 		middleware.LoggerMiddleware(),
 		//  middleware.PrometheusMiddleware(),
 		middleware.OtelMetricsMiddleware(),
-		gin.Recovery())
+		otelgin.Middleware(serviceName.Value.AsString()),
+		gin.Recovery(),
+	)
 
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})

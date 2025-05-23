@@ -3,6 +3,7 @@ package main
 import (
 	"albums/config"
 	definedMetrics "albums/internal/metrics"
+	"albums/internal/traces"
 	"context"
 	"log"
 	"net/http"
@@ -45,6 +46,11 @@ func main() {
 		log.Println("Metrics Exporter Shutdown : ", err)
 	} else {
 		log.Println("Metrics Exporter Closed")
+	}
+	if err := traces.ShutdownOTelTraces(ctx); err != nil {
+		log.Println("Traces Exporter Shutdown : ", err)
+	} else {
+		log.Println("Traces Exporter Closed")
 	}
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Println("Server Shutdown:", err)
