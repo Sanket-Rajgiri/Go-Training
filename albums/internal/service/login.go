@@ -2,6 +2,7 @@ package service
 
 import (
 	"albums/internal/models"
+	"context"
 	"crypto/rand"
 	"errors"
 	"os"
@@ -17,9 +18,9 @@ import (
 type LoginService interface {
 	JWTTokenGenerator(userID string) (string, error)
 	GetUserbyID(userID string) (models.Users, error)
-	GetUserInfo(username string) (models.Users, error)
-	RegisterUser(username, password string) (models.Users, error)
-	ValidateCredentials(username, password string) (bool, uint, error)
+	GetUserInfo(ctx context.Context, username string) (models.Users, error)
+	RegisterUser(ctx context.Context, username, password string) (models.Users, error)
+	ValidateCredentials(ctx context.Context, username, password string) (bool, uint, error)
 }
 
 type LoginServiceImpl struct {
@@ -97,16 +98,16 @@ func (service *LoginServiceImpl) GetUserbyID(userID string) (models.Users, error
 	return user, nil
 }
 
-func (service *LoginServiceImpl) GetUserInfo(username string) (models.Users, error) {
+func (service *LoginServiceImpl) GetUserInfo(ctx context.Context, username string) (models.Users, error) {
 	var user models.Users
-	if err := service.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := service.DB.WithContext(ctx).Where("username = ?", username).First(&user).Error; err != nil {
 		return user, err
 	}
 	return user, nil
 }
 
-func (service *LoginServiceImpl) ValidateCredentials(username, password string) (bool, uint, error) {
-	user, err := service.GetUserInfo(username)
+func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, username, password string) (bool, uint, error) {
+	user, err := service.GetUserInfo(ctx, username)
 	if err != nil {
 		return false, 0, err
 	}
@@ -137,8 +138,8 @@ func generateRandomString(length int) (string, error) {
 	return string(bytes), nil
 }
 
-func (service *LoginServiceImpl) RegisterUser(username, password string) (models.Users, error) {
-	_, err := service.GetUserInfo(username)
+func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, password string) (models.Users, error) {
+	_, err := service.GetUserInfo(ctx, username)
 	if err == nil {
 		return models.Users{}, errors.New("username already exists")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -155,7 +156,7 @@ func (service *LoginServiceImpl) RegisterUser(username, password string) (models
 	}
 
 	user := models.Users{Username: username, Password: string(hashedPassword), SecretKey: secretKey, Role: "user"}
-	if err := service.DB.Create(&user).Error; err != nil {
+	if err := service.DB.WithContext(ctx).Create(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrCheckConstraintViolated) {
 			return models.Users{}, errors.New("user with same username exists")
 		}

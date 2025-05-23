@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"albums/internal/metrics"
 	"albums/internal/models"
 	"albums/internal/service"
 	"net/http"
@@ -26,7 +25,7 @@ type AlbumHandler struct {
 //	@Router			/albums [get]
 //	@Security		BearerAuth
 func (handler *AlbumHandler) GetAlbums(c *gin.Context) {
-	albums, err := handler.AlbumService.GetAlbums()
+	albums, err := handler.AlbumService.GetAlbums(c.Request.Context())
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -53,7 +52,7 @@ func (handler *AlbumHandler) GetAlbumByID(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	album, err := handler.AlbumService.GetAlbumByID(uint(id))
+	album, err := handler.AlbumService.GetAlbumByID(c.Request.Context(), uint(id))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -82,14 +81,12 @@ func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	id, err := handler.AlbumService.AddAlbums(newAlbum)
+	id, err := handler.AlbumService.AddAlbums(c.Request.Context(), newAlbum)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 
 	}
-	// metrics.AlbumAddCounter.Inc()
-	metrics.AlbumsAdded.Add(c.Request.Context(), 1)
 	c.IndentedJSON(http.StatusCreated, gin.H{"message": "Album Added", "ID": id})
 }
 
@@ -113,7 +110,7 @@ func (handler *AlbumHandler) UpdatePrice(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	if _, err := handler.AlbumService.UpdatePrice(updateAlbum); err != nil {
+	if _, err := handler.AlbumService.UpdatePrice(c.Request.Context(), updateAlbum); err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 
@@ -140,7 +137,7 @@ func (handler *AlbumHandler) DeleteAlbum(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	deletedAlbumID, err := handler.AlbumService.DeleteAlbum(uint(id))
+	deletedAlbumID, err := handler.AlbumService.DeleteAlbum(c.Request.Context(), uint(id))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

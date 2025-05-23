@@ -57,7 +57,7 @@ func (handler *LoginHandler) Register(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	user, err := handler.LoginService.RegisterUser(newUser.Username, newUser.Password)
+	user, err := handler.LoginService.RegisterUser(c.Request.Context(), newUser.Username, newUser.Password)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

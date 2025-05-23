@@ -100,7 +100,7 @@ func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid json", "msg": err.Error()})
 			return
 		}
-		authenticated, userID, err := service.ValidateCredentials(credentials.Username, credentials.Password)
+		authenticated, userID, err := service.ValidateCredentials(c.Request.Context(), credentials.Username, credentials.Password)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

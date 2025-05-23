@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"albums/internal/metrics"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -22,5 +23,9 @@ func PrometheusMiddleware() gin.HandlerFunc {
 			c.Request.Method,
 			status,
 		).Observe(duration)
+
+		if c.FullPath() == "/albums" && c.Request.Method == http.MethodPost && c.Writer.Status() == http.StatusCreated {
+			metrics.AlbumAddCounter.Inc()
+		}
 	}
 }
