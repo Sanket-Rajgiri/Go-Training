@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 )
 
@@ -52,14 +53,14 @@ func TestGetAlbums(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
-			mockService := new(mocks.AlbumService)
-			mockService.On("GetAlbums").Return(tt.mockResponse, tt.mockError)
-
-			handler := handlers.AlbumHandler{AlbumService: mockService}
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 			c.Request = httptest.NewRequest(http.MethodGet, "/albums", nil)
 
+			mockService := new(mocks.AlbumService)
+			mockService.On("GetAlbums", mock.Anything).Return(tt.mockResponse, tt.mockError)
+
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.GetAlbums(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 
@@ -119,17 +120,17 @@ func TestGetAlbumByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
-			mockService := new(mocks.AlbumService)
-			if id, err := strconv.Atoi(tt.paramID); err == nil {
-				mockService.On("GetAlbumByID", uint(id)).Return(tt.mockResponse, tt.mockError)
-			}
-
-			handler := handlers.AlbumHandler{AlbumService: mockService}
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 			c.Request = httptest.NewRequest(http.MethodGet, "/albums/"+tt.paramID, nil)
 			c.Params = []gin.Param{{Key: "id", Value: tt.paramID}}
 
+			mockService := new(mocks.AlbumService)
+			if id, err := strconv.Atoi(tt.paramID); err == nil {
+				mockService.On("GetAlbumByID", mock.Anything, uint(id)).Return(tt.mockResponse, tt.mockError)
+			}
+
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.GetAlbumByID(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 
@@ -161,9 +162,13 @@ func TestAddAlbums(t *testing.T) {
 		expectedResult string
 	}{
 		{
-			name:           "Success",
-			requestBody:    `{"title":"New","artist":"Artist","price":15.5}`,
-			mockInput:      models.Album{Title: "New", Artist: "Artist", Price: 15.5},
+			name: "Success",
+			requestBody: `{
+    "Title": "Sarah Vaughan and Clifford Brown",
+    "Artist": "Sarah Vaughan",
+    "Price": 39.99
+}`,
+			mockInput:      models.Album{Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
 			mockReturnID:   101,
 			mockError:      nil,
 			expectedCode:   http.StatusCreated,
@@ -177,7 +182,7 @@ func TestAddAlbums(t *testing.T) {
 		},
 		{
 			name:           "Service Error",
-			requestBody:    `{"title":"Bad","artist":"X","price":1}`,
+			requestBody:    `{"Title":"Bad","Artist":"X","Price":1}`,
 			mockInput:      models.Album{Title: "Bad", Artist: "X", Price: 1},
 			mockReturnID:   0,
 			mockError:      errors.New("db fail"),
@@ -188,18 +193,18 @@ func TestAddAlbums(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := new(mocks.AlbumService)
-			if tt.mockError != nil || tt.mockReturnID != 0 {
-				mockService.On("AddAlbums", tt.mockInput).Return(tt.mockReturnID, tt.mockError)
-			}
-
-			handler := handlers.AlbumHandler{AlbumService: mockService}
-
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 			req := httptest.NewRequest(http.MethodPost, "/albums", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
 			c.Request = req
+
+			mockService := new(mocks.AlbumService)
+			if tt.mockError != nil || tt.mockReturnID != 0 {
+				mockService.On("AddAlbums", mock.Anything, tt.mockInput).Return(tt.mockReturnID, tt.mockError)
+			}
+
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 
 			handler.AddAlbums(c)
 
@@ -248,12 +253,6 @@ func TestUpdatePrice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := new(mocks.AlbumService)
-			if tt.mockError != nil || tt.mockInput.ID != 0 {
-				mockService.On("UpdatePrice", tt.mockInput).Return(tt.mockInput.ID, tt.mockError)
-			}
-
-			handler := handlers.AlbumHandler{AlbumService: mockService}
 
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
@@ -261,6 +260,12 @@ func TestUpdatePrice(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			c.Request = req
 
+			mockService := new(mocks.AlbumService)
+			if tt.mockError != nil || tt.mockInput.ID != 0 {
+				mockService.On("UpdatePrice", mock.Anything, tt.mockInput).Return(tt.mockInput.ID, tt.mockError)
+			}
+
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.UpdatePrice(c)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
@@ -306,13 +311,6 @@ func TestDeleteAlbum(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := new(mocks.AlbumService)
-			if tt.mockError != nil || tt.mockReturnID != 0 {
-				id, _ := strconv.Atoi(tt.paramID)
-				mockService.On("DeleteAlbum", uint(id)).Return(tt.mockReturnID, tt.mockError)
-			}
-
-			handler := handlers.AlbumHandler{AlbumService: mockService}
 
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
@@ -320,6 +318,13 @@ func TestDeleteAlbum(t *testing.T) {
 			req := httptest.NewRequest(http.MethodDelete, "/albums/"+tt.paramID, nil)
 			c.Request = req
 
+			mockService := new(mocks.AlbumService)
+			if tt.mockError != nil || tt.mockReturnID != 0 {
+				id, _ := strconv.Atoi(tt.paramID)
+				mockService.On("DeleteAlbum", mock.Anything, uint(id)).Return(tt.mockReturnID, tt.mockError)
+			}
+
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.DeleteAlbum(c)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
