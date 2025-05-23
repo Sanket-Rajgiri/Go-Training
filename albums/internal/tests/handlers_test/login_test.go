@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestRegisterHandler(t *testing.T) {
@@ -43,11 +44,6 @@ func TestRegisterHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := new(mocks.LoginService)
-			mockService.On("RegisterUser", tt.requestBody.Username, tt.requestBody.Password).
-				Return(tt.mockResponse, tt.mockError)
-
-			handler := handlers.LoginHandler{LoginService: mockService}
 
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
@@ -56,6 +52,11 @@ func TestRegisterHandler(t *testing.T) {
 			c.Request = httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
 			c.Request.Header.Set("Content-Type", "application/json")
 
+			mockService := new(mocks.LoginService)
+			mockService.On("RegisterUser", mock.Anything, tt.requestBody.Username, tt.requestBody.Password).
+				Return(tt.mockResponse, tt.mockError)
+
+			handler := handlers.LoginHandler{LoginService: mockService}
 			handler.Register(c)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
@@ -98,14 +99,6 @@ func TestLoginHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := new(mocks.LoginService)
-
-			if tt.userID != "" {
-				mockService.On("JWTTokenGenerator", tt.userID).
-					Return(tt.mockToken, tt.mockError)
-			}
-
-			handler := handlers.LoginHandler{LoginService: mockService}
 
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
@@ -116,6 +109,15 @@ func TestLoginHandler(t *testing.T) {
 			if tt.userID != "" {
 				c.Set("UserID", tt.userID)
 			}
+
+			mockService := new(mocks.LoginService)
+
+			if tt.userID != "" {
+				mockService.On("JWTTokenGenerator", tt.userID).
+					Return(tt.mockToken, tt.mockError)
+			}
+
+			handler := handlers.LoginHandler{LoginService: mockService}
 			handler.Login(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 			assert.Contains(t, w.Body.String(), tt.expectedResult)

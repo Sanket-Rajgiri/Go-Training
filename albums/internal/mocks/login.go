@@ -4,6 +4,8 @@ package mocks
 
 import (
 	models "albums/internal/models"
+	"context"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,17 +23,17 @@ func (m *LoginService) GetUserbyID(userID string) (models.Users, error) {
 	return args.Get(0).(models.Users), args.Error(1)
 }
 
-func (m *LoginService) GetUserInfo(username string) (models.Users, error) {
-	args := m.Called(username)
+func (m *LoginService) GetUserInfo(ctx context.Context,username string) (models.Users, error) {
+	args := m.Called(ctx,username)
 	return args.Get(0).(models.Users), args.Error(1)
 }
 
-func (m *LoginService) RegisterUser(username, password string) (models.Users, error) {
-	args := m.Called(username, password)
+func (m *LoginService) RegisterUser(ctx context.Context,username, password string) (models.Users, error) {
+	args := m.Called(ctx,username, password)
 	return args.Get(0).(models.Users), args.Error(1)
 }
 
-func (m *LoginService) ValidateCredentials(username, password string) (bool, uint, error) {
-	args := m.Called(username, password)
+func (m *LoginService) ValidateCredentials(ctx context.Context,username, password string) (bool, uint, error) {
+	args := m.Called(ctx,username, password)
 	return args.Bool(0), uint(args.Int(1)), args.Error(2)
 }
