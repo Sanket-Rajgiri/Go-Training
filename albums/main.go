@@ -2,6 +2,7 @@ package main
 
 import (
 	"albums/config"
+	definedMetrics "albums/internal/metrics"
 	"context"
 	"log"
 	"net/http"
@@ -20,8 +21,8 @@ import (
 //	@description				Enter your bearer token in the format **Bearer &lt;token&gt;**
 
 func main() {
-
-	router, db := config.RouterSetup()
+	var exitCode int
+	router, db := config.RouterSetup(context.Background())
 	// err := router.Run("localhost:8080")
 
 	srv := &http.Server{
@@ -29,36 +30,40 @@ func main() {
 		Handler: router.Handler(),
 	}
 	go func() {
-		// service connections
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			log.Fatalln("listen: ", err)
 		}
 	}()
 	quit := make(chan os.Signal, 1)
-	// kill (no params) by default sends syscall.SIGTERM
-	// kill -2 is syscall.SIGINT
-	// kill -9 is syscall.SIGKILL but can't be caught, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutdown Server ...")
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(30*time.Second))
 	defer cancel()
+	if err := definedMetrics.ShutdownOTelMetrics(ctx); err != nil {
+		log.Println("Metrics Exporter Shutdown : ", err)
+	} else {
+		log.Println("Metrics Exporter Closed")
+	}
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Println("Server Shutdown:", err)
+		exitCode = 1
+	} else {
+		log.Println("HTTP server Shutdown")
 	}
-
 	sqlDB, err := db.DB()
 	if err != nil {
 		log.Printf("Failed to get sql.DB from GORM: %v", err)
+		exitCode = 1
 	} else {
 		if err := sqlDB.Close(); err != nil {
 			log.Printf("Error Closing DB : %s", err.Error())
+			exitCode = 1
 		} else {
 			log.Println("DB Connection Closed")
 		}
 	}
-	// catching ctx.Done(). timeout of 5 seconds.
-	<-ctx.Done()
 	log.Println("Server exiting")
+	os.Exit(exitCode)
 }

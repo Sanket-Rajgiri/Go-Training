@@ -4,24 +4,44 @@ import (
 	_ "albums/docs" // this line is REQUIRED for Swagger to find the docs package
 	"albums/internal/database"
 	"albums/internal/handlers"
+	"albums/internal/metrics"
 	"albums/internal/middleware"
 	"albums/internal/service"
 	"albums/routes"
-	"errors"
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-var dbTypeMap = map[string]string{
-	"dev":   "mysql",
-	"local": "sqlite",
+var (
+	dbTypeMap = map[string]string{
+		"dev":   "mysql",
+		"local": "sqlite",
+	}
+	serviceName = semconv.ServiceNameKey.String("gin-app")
+)
+
+func initGRPCConn(endpoint string) (*grpc.ClientConn, error) {
+	conn, err := grpc.NewClient(endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+	}
+
+	return conn, err
 }
 
 func loadEnv() (map[string]string, error) {
@@ -33,11 +53,11 @@ func loadEnv() (map[string]string, error) {
 	}
 	envVariables["DB_TYPE"] = dbTypeMap[envName]
 	if envName != "local" {
-		requiredVars := []string{"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_NAME"}
+		requiredVars := []string{"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_NAME", "COLLECTOR_ENDPOINT"}
 		for _, key := range requiredVars {
 			value := os.Getenv(key)
 			if value == "" {
-				return nil, errors.New("missing required environment variable: " + key)
+				return nil, fmt.Errorf("missing required environment variable: %s", key)
 			}
 			envVariables[key] = value
 		}
@@ -68,7 +88,7 @@ func initDB(envVars map[string]string) (*gorm.DB, error) {
 	}
 	return db, nil
 }
-func RouterSetup() (*gin.Engine, *gorm.DB) {
+func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
 	envVars, err := loadEnv()
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -77,13 +97,37 @@ func RouterSetup() (*gin.Engine, *gorm.DB) {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
+
+	// metrics.InitPrometheusMetrics()
+
+	grpcConn, err := initGRPCConn(envVars["COLLECTOR_ENDPOINT"])
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	res, err := resource.New(
+		ctx,
+		resource.WithAttributes(
+			serviceName,
+		),
+	)
+	if err != nil {
+		log.Fatalln("failed to create otel resource: ", err)
+	}
+	metrics.InitOTelMetrics(grpcConn, ctx, res)
 	router := gin.New()
-	router.Use(middleware.LoggerMiddleware(), gin.Recovery())
+	router.Use(
+		middleware.LoggerMiddleware(),
+		//  middleware.PrometheusMiddleware(),
+		middleware.OtelMetricsMiddleware(),
+		gin.Recovery())
 
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	albumService := &service.AlbumServiceImpl{DB: db}
 	albumHandler := &handlers.AlbumHandler{AlbumService: albumService}
 	routes.RegisterAlbumRoutes(router, albumHandler)

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"albums/internal/metrics"
 	"albums/internal/models"
 	"albums/internal/service"
 	"net/http"
@@ -87,6 +88,8 @@ func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
 		return
 
 	}
+	// metrics.AlbumAddCounter.Inc()
+	metrics.AlbumsAdded.Add(c.Request.Context(), 1)
 	c.IndentedJSON(http.StatusCreated, gin.H{"message": "Album Added", "ID": id})
 }
 
