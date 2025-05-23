@@ -24,3 +24,6 @@ run_app:
 
 test_app: 
 	@go test ./internal/tests/*
+
+swag_init:
+	@swag init -d ./,./internal/handlers
