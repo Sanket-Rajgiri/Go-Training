@@ -6,6 +6,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type LoginHandler struct {
@@ -26,16 +29,24 @@ type LoginHandler struct {
 //	@Failure		500	{object}	map[string]string		"Internal server error"
 //	@Router			/login [post]
 func (handler *LoginHandler) Login(c *gin.Context) {
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Login-Tracer")
+	ctx, span := tracer.Start(ctx, "Login-Handler")
+	defer span.End()
 	userID, exists := c.Get("UserID")
 	if !exists || len(userID.(string)) == 0 {
+		span.SetStatus(codes.Error, "user not found")
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
-	token, err := handler.LoginService.JWTTokenGenerator(userID.(string))
+	span.SetAttributes(attribute.String("userId", userID.(string)))
+	token, err := handler.LoginService.JWTTokenGenerator(ctx, userID.(string))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Not able to generate token : ", "messsage": err.Error()})
 		return
 	}
+	span.SetStatus(codes.Ok, "token generated")
 	c.JSON(http.StatusOK, gin.H{"message": "Loggedin", "token": token, "ID": userID})
 }
 
@@ -52,15 +63,23 @@ func (handler *LoginHandler) Login(c *gin.Context) {
 //	@Failure		500		{object}	map[string]string		"Failed to create user"
 //	@Router			/register [post]
 func (handler *LoginHandler) Register(c *gin.Context) {
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Register-Tracer")
+	ctx, span := tracer.Start(ctx, "Register-Handler")
+	defer span.End()
 	var newUser models.Users
 	if err := c.ShouldBindBodyWithJSON(&newUser); err != nil {
+		span.SetStatus(codes.Error, "Invalid JSON")
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	user, err := handler.LoginService.RegisterUser(c.Request.Context(), newUser.Username, newUser.Password)
+	user, err := handler.LoginService.RegisterUser(ctx, newUser.Username, newUser.Password)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	span.SetAttributes(attribute.Int64("userID", int64(user.ID)), attribute.String("username", user.Username))
+	span.SetStatus(codes.Ok, "user created")
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "user created", "ID": user.ID, "username": user.Username, "password": user.Password})
 }

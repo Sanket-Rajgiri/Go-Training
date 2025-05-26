@@ -13,8 +13,8 @@ type LoginService struct {
 	mock.Mock
 }
 
-func (m *LoginService) JWTTokenGenerator(userID string) (string, error) {
-	args := m.Called(userID)
+func (m *LoginService) JWTTokenGenerator(ctx context.Context,userID string) (string, error) {
+	args := m.Called(ctx,userID)
 	return args.String(0), args.Error(1)
 }
 

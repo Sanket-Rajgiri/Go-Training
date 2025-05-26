@@ -7,6 +7,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type AlbumHandler struct {
@@ -25,11 +28,17 @@ type AlbumHandler struct {
 //	@Router			/albums [get]
 //	@Security		BearerAuth
 func (handler *AlbumHandler) GetAlbums(c *gin.Context) {
-	albums, err := handler.AlbumService.GetAlbums(c.Request.Context())
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Albums-Tracer")
+	ctx, span := tracer.Start(ctx, "GetAlbumsHandler")
+	defer span.End()
+	albums, err := handler.AlbumService.GetAlbums(ctx)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	span.SetStatus(codes.Ok, "albums fetched")
 	c.IndentedJSON(http.StatusOK, gin.H{"albums": albums})
 }
 
@@ -47,16 +56,24 @@ func (handler *AlbumHandler) GetAlbums(c *gin.Context) {
 //
 //	@Security		BearerAuth
 func (handler *AlbumHandler) GetAlbumByID(c *gin.Context) {
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Login-Tracer")
+	_, span := tracer.Start(ctx, "GetAlbumByIDHandler")
+	defer span.End()
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	album, err := handler.AlbumService.GetAlbumByID(c.Request.Context(), uint(id))
+	album, err := handler.AlbumService.GetAlbumByID(ctx, uint(id))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	span.SetAttributes(attribute.Int64("albumId", int64(album.ID)))
+	span.SetStatus(codes.Ok, "album fetched")
 	c.IndentedJSON(http.StatusOK, album)
 
 }
@@ -76,17 +93,25 @@ func (handler *AlbumHandler) GetAlbumByID(c *gin.Context) {
 //
 //	@Security		BearerAuth
 func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Albums-Tracer")
+	_, span := tracer.Start(ctx, "AddAlbumsHandler")
+	defer span.End()
 	var newAlbum models.Album
 	if err := c.BindJSON(&newAlbum); err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	id, err := handler.AlbumService.AddAlbums(c.Request.Context(), newAlbum)
+	id, err := handler.AlbumService.AddAlbums(ctx, newAlbum)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 
 	}
+	span.SetAttributes(attribute.Int64("albumId", int64(newAlbum.ID)))
+	span.SetStatus(codes.Ok, "album added")
 	c.IndentedJSON(http.StatusCreated, gin.H{"message": "Album Added", "ID": id})
 }
 
@@ -105,16 +130,24 @@ func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
 //
 //	@Security		BearerAuth
 func (handler *AlbumHandler) UpdatePrice(c *gin.Context) {
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Albums-Tracer")
+	_, span := tracer.Start(ctx, "UpdatePriceHandler")
+	defer span.End()
 	var updateAlbum models.Album
 	if err := c.BindJSON(&updateAlbum); err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
-	if _, err := handler.AlbumService.UpdatePrice(c.Request.Context(), updateAlbum); err != nil {
+	if _, err := handler.AlbumService.UpdatePrice(ctx, updateAlbum); err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 
 	}
+	span.SetAttributes(attribute.Int64("albumId", int64(updateAlbum.ID)))
+	span.SetStatus(codes.Ok, "album updated")
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Album Price Updated Successfully"})
 }
 
@@ -132,15 +165,23 @@ func (handler *AlbumHandler) UpdatePrice(c *gin.Context) {
 //
 //	@Security		BearerAuth
 func (handler *AlbumHandler) DeleteAlbum(c *gin.Context) {
+	ctx := c.Request.Context()
+	tracer := otel.Tracer("Albums-Tracer")
+	_, span := tracer.Start(ctx, "DeleteAlbumHandler")
+	defer span.End()
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	deletedAlbumID, err := handler.AlbumService.DeleteAlbum(c.Request.Context(), uint(id))
+	deletedAlbumID, err := handler.AlbumService.DeleteAlbum(ctx, uint(id))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	span.SetAttributes(attribute.Int64("albumId", int64(deletedAlbumID)))
+	span.SetStatus(codes.Ok, "album deleted")
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "album deleted successfully", "ID": deletedAlbumID})
 }
