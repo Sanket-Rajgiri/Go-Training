@@ -1,10 +1,12 @@
 package middleware
 
 import (
-	"log"
+	"albums/internal/customlogs"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	// "go.opentelemetry.io/otel/log"
 )
 
 func LoggerMiddleware() gin.HandlerFunc {
@@ -17,6 +19,8 @@ func LoggerMiddleware() gin.HandlerFunc {
 
 		status := c.Writer.Status()
 		duration := time.Since(start)
-		log.Printf("[%s] %s %d (%s)\n", method, path, status, duration)
+		// log.Printf("[%s] %s %d (%s)\n", method, path, status, duration)
+		customlogs.OtelLogger.Info(fmt.Sprintf("[%s] %s %d (%s)\n", method, path, status, duration))
+
 	}
 }

@@ -1,10 +1,12 @@
 package service
 
 import (
+	"albums/internal/customlogs"
 	"albums/internal/models"
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -74,6 +76,7 @@ func (service *LoginServiceImpl) JWTTokenGenerator(userID string) (string, error
 	// if err := addTokenToDB(userID, signedToken); err != nil {
 	// 	return "", err
 	// }
+	customlogs.OtelLogger.Info(fmt.Sprintf("userID: %s token generated Successfully", userID))
 	return signedToken, err
 }
 
@@ -114,6 +117,7 @@ func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, userna
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return false, 0, err
 	}
+	customlogs.OtelLogger.Info(fmt.Sprintf("%s logged in!!", username))
 	return true, user.ID, nil
 }
 
@@ -141,6 +145,7 @@ func generateRandomString(length int) (string, error) {
 func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, password string) (models.Users, error) {
 	_, err := service.GetUserInfo(ctx, username)
 	if err == nil {
+		customlogs.OtelLogger.Error(fmt.Sprintf("username: %s already exists", username))
 		return models.Users{}, errors.New("username already exists")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return models.Users{}, err
@@ -158,9 +163,11 @@ func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, pas
 	user := models.Users{Username: username, Password: string(hashedPassword), SecretKey: secretKey, Role: "user"}
 	if err := service.DB.WithContext(ctx).Create(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrCheckConstraintViolated) {
+			customlogs.OtelLogger.Error(fmt.Sprintf("username: %s already exists", username))
 			return models.Users{}, errors.New("user with same username exists")
 		}
 		return models.Users{}, err
 	}
+	customlogs.OtelLogger.Info(fmt.Sprintf("User: %s registered successfully!", username))
 	return user, nil
 }

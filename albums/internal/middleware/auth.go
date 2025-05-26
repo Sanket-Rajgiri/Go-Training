@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"albums/internal/customlogs"
 	"albums/internal/models"
 	"albums/internal/service"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -57,6 +59,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 		if err != nil {
+			customlogs.OtelLogger.Error(fmt.Sprintf("error in validating token: %v", err))
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}

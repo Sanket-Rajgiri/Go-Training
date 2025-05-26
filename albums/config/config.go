@@ -2,6 +2,7 @@ package config
 
 import (
 	_ "albums/docs" // this line is REQUIRED for Swagger to find the docs package
+	customlogs "albums/internal/customlogs"
 	"albums/internal/database"
 	"albums/internal/handlers"
 	"albums/internal/metrics"
@@ -115,13 +116,17 @@ func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
 	if err != nil {
 		log.Fatalln("failed to create otel resource: ", err)
 	}
-	err = metrics.InitOTelMetrics(grpcConn, ctx, res)
+	err = customlogs.InitOtelLogger(grpcConn, ctx, res)
 	if err != nil {
 		log.Println(err)
 	}
+	err = metrics.InitOTelMetrics(grpcConn, ctx, res)
+	if err != nil {
+		customlogs.OtelLogger.Error(err.Error())
+	}
 	err = traces.InitOtelTraces(grpcConn, ctx, res)
 	if err != nil {
-		log.Println(err)
+		customlogs.OtelLogger.Error(err.Error())
 	}
 	router := gin.New()
 	router.Use(
