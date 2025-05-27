@@ -31,6 +31,7 @@ func (handler *AlbumHandler) GetAlbums(c *gin.Context) {
 	ctx := c.Request.Context()
 	tracer := otel.Tracer("Albums-Tracer")
 	ctx, span := tracer.Start(ctx, "GetAlbumsHandler")
+	c.Request = c.Request.WithContext(ctx)
 	defer span.End()
 	albums, err := handler.AlbumService.GetAlbums(ctx)
 	if err != nil {
@@ -58,7 +59,8 @@ func (handler *AlbumHandler) GetAlbums(c *gin.Context) {
 func (handler *AlbumHandler) GetAlbumByID(c *gin.Context) {
 	ctx := c.Request.Context()
 	tracer := otel.Tracer("Login-Tracer")
-	_, span := tracer.Start(ctx, "GetAlbumByIDHandler")
+	ctx, span := tracer.Start(ctx, "GetAlbumByIDHandler")
+	c.Request = c.Request.WithContext(ctx)
 	defer span.End()
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -95,7 +97,8 @@ func (handler *AlbumHandler) GetAlbumByID(c *gin.Context) {
 func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
 	ctx := c.Request.Context()
 	tracer := otel.Tracer("Albums-Tracer")
-	_, span := tracer.Start(ctx, "AddAlbumsHandler")
+	ctx, span := tracer.Start(ctx, "AddAlbumsHandler")
+	c.Request = c.Request.WithContext(ctx)
 	defer span.End()
 	var newAlbum models.Album
 	if err := c.BindJSON(&newAlbum); err != nil {
@@ -132,7 +135,8 @@ func (handler *AlbumHandler) AddAlbums(c *gin.Context) {
 func (handler *AlbumHandler) UpdatePrice(c *gin.Context) {
 	ctx := c.Request.Context()
 	tracer := otel.Tracer("Albums-Tracer")
-	_, span := tracer.Start(ctx, "UpdatePriceHandler")
+	ctx, span := tracer.Start(ctx, "UpdatePriceHandler")
+	c.Request = c.Request.WithContext(ctx)
 	defer span.End()
 	var updateAlbum models.Album
 	if err := c.BindJSON(&updateAlbum); err != nil {
@@ -167,7 +171,8 @@ func (handler *AlbumHandler) UpdatePrice(c *gin.Context) {
 func (handler *AlbumHandler) DeleteAlbum(c *gin.Context) {
 	ctx := c.Request.Context()
 	tracer := otel.Tracer("Albums-Tracer")
-	_, span := tracer.Start(ctx, "DeleteAlbumHandler")
+	ctx, span := tracer.Start(ctx, "DeleteAlbumHandler")
+	c.Request = c.Request.WithContext(ctx)
 	defer span.End()
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

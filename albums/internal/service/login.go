@@ -82,7 +82,7 @@ func (service *LoginServiceImpl) JWTTokenGenerator(ctx context.Context, userID s
 	// if err := addTokenToDB(userID, signedToken); err != nil {
 	// 	return "", err
 	// }
-	customlogs.OtelLogger.Info(fmt.Sprintf("userID: %s token generated Successfully", userID))
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("userID: %s token generated Successfully", userID))
 	span.SetStatus(codes.Ok, "token generated")
 	span.SetAttributes(attribute.String("userID", userID))
 	return signedToken, err
@@ -136,7 +136,7 @@ func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, userna
 		span.SetStatus(codes.Error, err.Error())
 		return false, 0, err
 	}
-	customlogs.OtelLogger.Info(fmt.Sprintf("%s logged in!!", username))
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("%s logged in!!", username))
 	span.SetStatus(codes.Ok, "logged in")
 	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
 	return true, user.ID, nil
@@ -169,7 +169,7 @@ func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, pas
 	defer span.End()
 	_, err := service.GetUserInfo(ctx, username)
 	if err == nil {
-		customlogs.OtelLogger.Error(fmt.Sprintf("username: %s already exists", username))
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("username: %s already exists", username))
 		span.SetStatus(codes.Error, "username already exists")
 		return models.Users{}, errors.New("username already exists")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -190,14 +190,14 @@ func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, pas
 	user := models.Users{Username: username, Password: string(hashedPassword), SecretKey: secretKey, Role: "user"}
 	if err := service.DB.WithContext(ctx).Create(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrCheckConstraintViolated) {
-			customlogs.OtelLogger.Error(fmt.Sprintf("username: %s already exists", username))
+			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("username: %s already exists", username))
 			span.SetStatus(codes.Error, err.Error())
 			return models.Users{}, errors.New("user with same username exists")
 		}
 		span.SetStatus(codes.Error, err.Error())
 		return models.Users{}, err
 	}
-	customlogs.OtelLogger.Info(fmt.Sprintf("User: %s registered successfully!", username))
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("User: %s registered successfully!", username))
 	span.SetStatus(codes.Ok, "user registered")
 	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
 	return user, nil

@@ -122,11 +122,11 @@ func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
 	}
 	err = metrics.InitOTelMetrics(grpcConn, ctx, res)
 	if err != nil {
-		customlogs.OtelLogger.Error(err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
 	}
 	err = traces.InitOtelTraces(grpcConn, ctx, res)
 	if err != nil {
-		customlogs.OtelLogger.Error(err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
 	}
 	router := gin.New()
 	router.Use(

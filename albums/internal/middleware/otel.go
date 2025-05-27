@@ -2,7 +2,6 @@ package middleware
 
 import (
 	definedMetrics "albums/internal/metrics"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,8 +28,5 @@ func OtelMetricsMiddleware() gin.HandlerFunc {
 				),
 			),
 		)
-		if c.FullPath() == "/albums" && c.Request.Method == http.MethodPost && c.Writer.Status() == http.StatusCreated {
-			definedMetrics.AlbumsAdded.Add(c.Request.Context(), 1)
-		}
 	}
 }

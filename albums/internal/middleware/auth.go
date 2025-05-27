@@ -59,14 +59,14 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 		defer span.End()
 		authHeader := c.Request.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			customlogs.OtelLogger.Error("Missing or invalid Authorization header")
+			customlogs.OtelLogger.Ctx(ctx).Error("Missing or invalid Authorization header")
 			span.SetStatus(codes.Error, "Missing or invalid Authorization header")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid Authorization header"})
 			return
 		}
 		bearerToken := strings.TrimPrefix(authHeader, "Bearer ")
 		if bearerToken == "" {
-			customlogs.OtelLogger.Error("Empty token")
+			customlogs.OtelLogger.Ctx(ctx).Error("Empty token")
 			span.SetStatus(codes.Error, "Empty Token")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Empty token"})
 			return
@@ -76,7 +76,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 		if err != nil {
-			customlogs.OtelLogger.Error(fmt.Sprintf("error in validating token: %v", err))
+			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error in validating token: %v", err))
 			span.SetStatus(codes.Error, err.Error())
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
@@ -135,21 +135,21 @@ func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
 		defer span.End()
 		var credentials models.LoginPayload
 		if err := c.ShouldBindBodyWithJSON(&credentials); err != nil {
-			customlogs.OtelLogger.Error(err.Error())
+			customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
 			span.SetStatus(codes.Error, err.Error())
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid json", "msg": err.Error()})
 			return
 		}
 		authenticated, userID, err := service.ValidateCredentials(c.Request.Context(), credentials.Username, credentials.Password)
 		if err != nil {
-			customlogs.OtelLogger.Error(err.Error())
+			customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
 			span.SetStatus(codes.Error, err.Error())
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		c.Set("UserID", strconv.FormatUint(uint64(userID), 10))
 		if !authenticated {
-			customlogs.OtelLogger.Error(fmt.Sprintf("userID: %d unauthorised", userID))
+			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("userID: %d unauthorised", userID))
 			span.SetStatus(codes.Error, "unauthorised")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorised"})
 			return

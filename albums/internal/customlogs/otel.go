@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"go.opentelemetry.io/contrib/bridges/otelzap"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
+	// "go.opentelemetry.io/contrib/bridges/otelzap"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	otellog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -14,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var OtelLogger *zap.Logger
+var OtelLogger *otelzap.Logger
 var otelLogProvider *otellog.LoggerProvider
 
 func InitOtelLogger(conn *grpc.ClientConn, ctx context.Context, res *resource.Resource) error {
@@ -24,12 +25,22 @@ func InitOtelLogger(conn *grpc.ClientConn, ctx context.Context, res *resource.Re
 	}
 	processor := otellog.NewBatchProcessor(exporter)
 	otelLogProvider = otellog.NewLoggerProvider(otellog.WithResource(res), otellog.WithProcessor(processor))
-	OtelLogger = zap.New(
-		zapcore.NewTee(
-			zapcore.NewCore(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()), zapcore.AddSync(os.Stdout), zapcore.InfoLevel),
-			otelzap.NewCore("gin-app", otelzap.WithLoggerProvider(otelLogProvider)),
-		),
+	OtelLogger = otelzap.New(
+		zap.New(zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(os.Stdout),
+			zap.InfoLevel,
+		)),
+		otelzap.WithMinLevel(zapcore.DebugLevel),
+		otelzap.WithLoggerProvider(otelLogProvider),
+		otelzap.WithStackTrace(true),
 	)
+	// OtelLogger = zap.New(
+	// zapcore.NewTee(
+	// 	zapcore.NewCore(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()), zapcore.AddSync(os.Stdout), zapcore.InfoLevel),
+	// 	otelzap.NewCore("gin-app", otelzap.WithLoggerProvider(otelLogProvider)),
+	// ),
+
 	return nil
 }
 

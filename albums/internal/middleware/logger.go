@@ -20,7 +20,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 		status := c.Writer.Status()
 		duration := time.Since(start)
 		// log.Printf("[%s] %s %d (%s)\n", method, path, status, duration)
-		customlogs.OtelLogger.Info(fmt.Sprintf("[%s] %s %d (%s)\n", method, path, status, duration))
+		customlogs.OtelLogger.Ctx(c.Request.Context()).Info(fmt.Sprintf("[%s] %s %d (%s)\n", method, path, status, duration))
 
 	}
 }
