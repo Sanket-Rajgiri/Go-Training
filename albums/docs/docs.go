@@ -337,7 +337,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/register": {
+        "/login/register": {
             "post": {
                 "description": "Creates a new user account and returns user details.",
                 "consumes": [

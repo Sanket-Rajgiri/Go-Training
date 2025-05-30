@@ -1,18 +1,17 @@
 package service
 
 import (
+	"albums/internal/config/env"
 	"albums/internal/customlogs"
 	"albums/internal/models"
 	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -20,53 +19,237 @@ import (
 	"gorm.io/gorm"
 )
 
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+var (
+	ErrUserAlreadyExists  = errors.New("username already exists")
+	ErrInvalidTokenClaims = errors.New("invalid token claim")
+)
+
+type TokenClaim struct {
+	Role string `json:"Role"`
+	jwt.RegisteredClaims
+}
+
 type LoginService interface {
-	JWTTokenGenerator(ctx context.Context, userID string) (string, error)
-	GetUserbyID(userID string) (models.Users, error)
-	GetUserInfo(ctx context.Context, username string) (models.Users, error)
+	Login(ctx context.Context, userID, role string) (string, string, error)
+	Logout(ctx context.Context, username string) error
+	RefreshToken(ctx context.Context, username, token string) (string, error)
 	RegisterUser(ctx context.Context, username, password string) (models.Users, error)
-	ValidateCredentials(ctx context.Context, username, password string) (bool, uint, error)
+	ValidateCredentials(ctx context.Context, username, password string) (uint, string, error)
+	// jwtTokenGenerator(ctx context.Context, userID, role string, jwtSecret []byte, jwtExpiryMinutes int) (string, error)
+	// jwtTokenValidator(ctx context.Context, bearerToken, secretKey string) (*TokenClaim, error)
+	// getUserbyID(ctx context.Context, userID string) (models.Users, error)
+	// getUserInfo(ctx context.Context, username string) (models.Users, error)
 }
 
 type LoginServiceImpl struct {
 	DB *gorm.DB
 }
 
-var TokenStore = make(map[string]int64)
-
-func TokenCleaner(interval time.Duration) {
-	go func() {
-		for {
-			time.Sleep(interval)
-			for token, expiryTime := range TokenStore {
-				if time.Now().Unix() > expiryTime {
-					delete(TokenStore, token)
-				}
-			}
-		}
-	}()
-}
-
-func TokenGenerator() string {
-	token := uuid.NewString()
-	expiryTime := time.Now().Add(time.Minute * 5).Unix()
-	TokenStore[token] = expiryTime
-	return token
-}
-
-// func addTokenToDB(userID, token string) error {
-// 	return database.DB.Model(models.Users{}).Where("id = ?", userID).Update("token", token).Error
-// }
-
-func (service *LoginServiceImpl) JWTTokenGenerator(ctx context.Context, userID string) (string, error) {
+func (service *LoginServiceImpl) Login(ctx context.Context, userID, role string) (string, string, error) {
 	tracer := otel.Tracer("Service-Tracer")
-	_, span := tracer.Start(ctx, "JWTTokenGenerator")
+	_, span := tracer.Start(ctx, "Login")
 	defer span.End()
-	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-	jwtExpiryMinutes, _ := strconv.Atoi(os.Getenv("JWT_EXPIRY_MINUTES"))
+	var access_token, refresh_token string
+
+	user, err := service.getUserbyID(ctx, userID)
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return access_token, refresh_token, err
+	}
+
+	access_token, err = service.jwtTokenGenerator(ctx, userID, role, []byte(env.JWT_SECRET), env.JWT_EXPIRY_MINUTES)
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error generating access token: %v", err.Error()))
+
+		span.SetStatus(codes.Error, err.Error())
+		return access_token, refresh_token, err
+	}
+
+	refresh_token, err = service.jwtTokenGenerator(ctx, userID, role, []byte(user.SecretKey), env.REFRESH_TOKEN_EXPIRY_MINUTES)
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error generating refresh token: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return access_token, refresh_token, err
+
+	}
+
+	user.Revoked = false
+	if err := service.DB.WithContext(ctx).Save(user).Error; err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error updating user: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return access_token, refresh_token, err
+	}
+
+	return access_token, refresh_token, nil
+}
+
+func (service *LoginServiceImpl) RefreshToken(ctx context.Context, username, token string) (string, error) {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "RefreshToken")
+	defer span.End()
+	var newAccessToken string
+	user, err := service.getUserInfo(ctx, username)
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return newAccessToken, err
+	}
+
+	userID := strconv.FormatUint(uint64(user.ID), 10)
+	claims, err := service.jwtTokenValidator(ctx, token, user.SecretKey)
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error validating token: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return newAccessToken, err
+	}
+
+	if claims.Role != user.Role || claims.RegisteredClaims.Subject != userID {
+		customlogs.OtelLogger.Ctx(ctx).Error(ErrInvalidTokenClaims.Error())
+		span.SetStatus(codes.Error, ErrInvalidTokenClaims.Error())
+		return newAccessToken, ErrInvalidTokenClaims
+	}
+
+	newAccessToken, err = service.jwtTokenGenerator(ctx, userID, user.Role, []byte(env.JWT_SECRET), env.JWT_EXPIRY_MINUTES)
+	if err != nil {
+		customlogs.OtelLogger.Error(fmt.Sprintf("error generating access token: %s", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return newAccessToken, err
+	}
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("user: %s token refreshed", username))
+	span.SetStatus(codes.Ok, "token generated")
+	span.SetAttributes(attribute.String("userID", userID))
+	return newAccessToken, nil
+}
+
+func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, username, password string) (uint, string, error) {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "ValidateCredentials")
+	defer span.End()
+	user, err := service.getUserInfo(ctx, username)
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return 0, "", err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error validating password: %v", err.Error()))
+		span.SetStatus(codes.Error, err.Error())
+		return 0, "", err
+	}
+	customlogs.OtelLogger.Ctx(ctx).Info("credentials valid")
+	span.SetStatus(codes.Ok, "credentials valid")
+	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
+	return user.ID, user.Role, nil
+}
+
+func generateRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	var randomString string
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return randomString, err
+	}
+
+	for i, b := range bytes {
+		bytes[i] = charset[int(b)%len(charset)]
+	}
+	randomString = string(bytes)
+	return randomString, nil
+}
+
+func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, password string) (models.Users, error) {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "RegisterUser")
+	defer span.End()
+	_, err := service.getUserInfo(ctx, username)
+	if err == nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("username: %s already exists", username))
+		span.SetStatus(codes.Error, ErrUserAlreadyExists.Error())
+		return models.Users{}, ErrUserAlreadyExists
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return models.Users{}, err
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return models.Users{}, err
+	}
+
+	secretKey, err := generateRandomString(16)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return models.Users{}, err
+	}
+
+	user := models.Users{Username: username, Password: string(hashedPassword), SecretKey: secretKey, Role: "user"}
+	if err := service.DB.WithContext(ctx).Create(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrCheckConstraintViolated) {
+			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("username: %s already exists", username))
+			span.SetStatus(codes.Error, ErrUserAlreadyExists.Error())
+			return models.Users{}, ErrUserAlreadyExists
+		}
+		span.SetStatus(codes.Error, err.Error())
+		return models.Users{}, err
+	}
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("User: %s registered successfully!", username))
+	span.SetStatus(codes.Ok, "user registered")
+	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
+	return user, nil
+}
+
+func (service *LoginServiceImpl) Logout(ctx context.Context, username string) error {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "Logout")
+	defer span.End()
+	user, err := service.getUserInfo(ctx, username)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return err
+	}
+	user.Revoked = true
+	if err := service.DB.WithContext(ctx).Save(user).Error; err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return err
+	}
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("User : %s logged out", username))
+	span.SetStatus(codes.Ok, "logged out")
+	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
+	return nil
+}
+
+func (service *LoginServiceImpl) jwtTokenValidator(ctx context.Context, bearerToken, secretKey string) (*TokenClaim, error) {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "jwtTokenValidator")
+	defer span.End()
+	claims := &TokenClaim{}
+	_, err := jwt.ParseWithClaims(bearerToken, claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secretKey), nil
+	})
+	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	span.SetStatus(codes.Ok, "token validated")
+	customlogs.OtelLogger.Ctx(ctx).Info("token validated")
+	return claims, nil
+}
+
+func (service *LoginServiceImpl) jwtTokenGenerator(ctx context.Context, userID, role string, jwtSecret []byte, jwtExpiryMinutes int) (string, error) {
+	tracer := otel.Tracer("Service-Tracer")
+	_, span := tracer.Start(ctx, "jwtTokenGenerator")
+	defer span.End()
+	var signedToken string
 	expiryTime := time.Now().Add(time.Minute * time.Duration(jwtExpiryMinutes))
 	claims := TokenClaim{
-		Role: "user",
+		Role: role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -77,39 +260,28 @@ func (service *LoginServiceImpl) JWTTokenGenerator(ctx context.Context, userID s
 	signedToken, err := token.SignedString(jwtSecret)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		return "", err
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return signedToken, err
 	}
-	// if err := addTokenToDB(userID, signedToken); err != nil {
-	// 	return "", err
-	// }
-	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("userID: %s token generated Successfully", userID))
 	span.SetStatus(codes.Ok, "token generated")
-	span.SetAttributes(attribute.String("userID", userID))
-	return signedToken, err
+	return signedToken, nil
 }
 
-// func JWTTokenValidator(bearerToken string) error {
-// 	var token *jwt.Token
-// 	claims := &tokenClaim{}
-// 	token, err := jwt.ParseWithClaims(bearerToken, claims, func(t *jwt.Token) (interface{}, error) {
-// 		return []byte(os.Getenv("JWT_SECRET")), nil
-// 	})
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }
-
-func (service *LoginServiceImpl) GetUserbyID(userID string) (models.Users, error) {
+func (service *LoginServiceImpl) getUserbyID(ctx context.Context, userID string) (models.Users, error) {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "getUserbyID")
+	defer span.End()
 	var user models.Users
-	if err := service.DB.Find(&user, userID).Error; err != nil {
+	if err := service.DB.WithContext(ctx).Find(&user, userID).Error; err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return models.Users{}, err
 	}
+	span.SetStatus(codes.Ok, "user fetched")
+	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
 	return user, nil
 }
 
-func (service *LoginServiceImpl) GetUserInfo(ctx context.Context, username string) (models.Users, error) {
+func (service *LoginServiceImpl) getUserInfo(ctx context.Context, username string) (models.Users, error) {
 	tracer := otel.Tracer("Service-Tracer")
 	ctx, span := tracer.Start(ctx, "GetUserInfo")
 	defer span.End()
@@ -119,86 +291,6 @@ func (service *LoginServiceImpl) GetUserInfo(ctx context.Context, username strin
 		return user, err
 	}
 	span.SetStatus(codes.Ok, "user fetched")
-	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
-	return user, nil
-}
-
-func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, username, password string) (bool, uint, error) {
-	tracer := otel.Tracer("Service-Tracer")
-	ctx, span := tracer.Start(ctx, "ValidateCredentials")
-	defer span.End()
-	user, err := service.GetUserInfo(ctx, username)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		return false, 0, err
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		return false, 0, err
-	}
-	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("%s logged in!!", username))
-	span.SetStatus(codes.Ok, "logged in")
-	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
-	return true, user.ID, nil
-}
-
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-type TokenClaim struct {
-	Role string `json:"Role"`
-	jwt.RegisteredClaims
-}
-
-func generateRandomString(length int) (string, error) {
-	bytes := make([]byte, length)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-
-	for i, b := range bytes {
-		bytes[i] = charset[int(b)%len(charset)]
-	}
-
-	return string(bytes), nil
-}
-
-func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, password string) (models.Users, error) {
-	tracer := otel.Tracer("Service-Tracer")
-	ctx, span := tracer.Start(ctx, "RegisterUser")
-	defer span.End()
-	_, err := service.GetUserInfo(ctx, username)
-	if err == nil {
-		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("username: %s already exists", username))
-		span.SetStatus(codes.Error, "username already exists")
-		return models.Users{}, errors.New("username already exists")
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Users{}, err
-	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		return models.Users{}, err
-	}
-
-	secretKey, err := generateRandomString(16)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-		return models.Users{}, err
-	}
-
-	user := models.Users{Username: username, Password: string(hashedPassword), SecretKey: secretKey, Role: "user"}
-	if err := service.DB.WithContext(ctx).Create(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrCheckConstraintViolated) {
-			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("username: %s already exists", username))
-			span.SetStatus(codes.Error, err.Error())
-			return models.Users{}, errors.New("user with same username exists")
-		}
-		span.SetStatus(codes.Error, err.Error())
-		return models.Users{}, err
-	}
-	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("User: %s registered successfully!", username))
-	span.SetStatus(codes.Ok, "user registered")
 	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
 	return user, nil
 }

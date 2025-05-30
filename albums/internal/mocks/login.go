@@ -4,6 +4,7 @@ package mocks
 
 import (
 	models "albums/internal/models"
+	"albums/internal/service"
 	"context"
 
 	mock "github.com/stretchr/testify/mock"
@@ -13,27 +14,48 @@ type LoginService struct {
 	mock.Mock
 }
 
-func (m *LoginService) JWTTokenGenerator(ctx context.Context,userID string) (string, error) {
-	args := m.Called(ctx,userID)
-	return args.String(0), args.Error(1)
+func (m *LoginService) Login(ctx context.Context, userID,role string) (string, string, error){
+	args := m.Called(ctx, userID,role)
+	return args.String(0),args.String(1), args.Error(2)
 }
 
-func (m *LoginService) GetUserbyID(userID string) (models.Users, error) {
-	args := m.Called(userID)
-	return args.Get(0).(models.Users), args.Error(1)
-}
-
-func (m *LoginService) GetUserInfo(ctx context.Context,username string) (models.Users, error) {
-	args := m.Called(ctx,username)
-	return args.Get(0).(models.Users), args.Error(1)
-}
 
 func (m *LoginService) RegisterUser(ctx context.Context,username, password string) (models.Users, error) {
 	args := m.Called(ctx,username, password)
 	return args.Get(0).(models.Users), args.Error(1)
 }
 
-func (m *LoginService) ValidateCredentials(ctx context.Context,username, password string) (bool, uint, error) {
+func (m *LoginService) ValidateCredentials(ctx context.Context,username, password string) ( uint,string, error) {
 	args := m.Called(ctx,username, password)
-	return args.Bool(0), uint(args.Int(1)), args.Error(2)
+	return  uint(args.Int(0)),args.String(1), args.Error(2)
+}
+
+func (m* LoginService) Logout(ctx context.Context, username string) error {
+	args := m.Called(ctx, username)
+	return args.Error(0)
+}
+
+func (m *LoginService) RefreshToken(ctx context.Context, username, token string) (string, error){
+	args := m.Called(ctx, username, token)
+	return args.String(0), args.Error(1)
+}
+
+
+func (m *LoginService) getUserbyID(ctx context.Context,userID string) (models.Users, error) {
+	args := m.Called(ctx,userID)
+	return args.Get(0).(models.Users), args.Error(1)
+}
+
+func (m *LoginService) getUserInfo(ctx context.Context,username string) (models.Users, error) {
+	args := m.Called(ctx,username)
+	return args.Get(0).(models.Users), args.Error(1)
+}
+func(m *LoginService) jwtTokenGenerator(ctx context.Context, userID, role string, jwtSecret []byte, jwtExpiryMinutes int) (string, error){
+	args := m.Called(ctx, userID,role,jwtSecret,jwtExpiryMinutes)
+	return args.String(0), args.Error(1)
+}
+
+func(m *LoginService) jwtTokenValidator(ctx context.Context, bearerToken, secretKey string) (*service.TokenClaim, error){
+	args := m.Called(ctx, bearerToken, secretKey)
+	return args.Get(0).(*service.TokenClaim), args.Error(1)
 }

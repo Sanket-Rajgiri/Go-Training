@@ -2,8 +2,8 @@ package config
 
 import (
 	_ "albums/docs" // this line is REQUIRED for Swagger to find the docs package
+	"albums/internal/config/env"
 	customlogs "albums/internal/customlogs"
-	"albums/internal/database"
 	"albums/internal/handlers"
 	"albums/internal/metrics"
 	"albums/internal/middleware"
@@ -11,99 +11,37 @@ import (
 	"albums/internal/traces"
 	"albums/routes"
 	"context"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 var (
-	dbTypeMap = map[string]string{
-		"dev":   "mysql",
-		"local": "sqlite",
-	}
-	serviceName = semconv.ServiceNameKey.String("gin-app")
+	serviceName       = semconv.ServiceNameKey.String("gin-app")
+	collectorEndpoint = env.COLLECTOR_ENDPOINT
 )
 
-func initGRPCConn(endpoint string) (*grpc.ClientConn, error) {
-	conn, err := grpc.NewClient(endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
-	}
-
-	return conn, err
-}
-
-func loadEnv() (map[string]string, error) {
-	envVariables := make(map[string]string)
-	envName, exists := os.LookupEnv("ENV")
-	if !exists {
-		envName = "local"
-		log.Println("setting envName = local")
-	}
-	envVariables["DB_TYPE"] = dbTypeMap[envName]
-	if envName != "local" {
-		requiredVars := []string{"DB_USER", "DB_PASSWORD", "DB_HOST", "DB_NAME", "COLLECTOR_ENDPOINT"}
-		for _, key := range requiredVars {
-			value := os.Getenv(key)
-			if value == "" {
-				return nil, fmt.Errorf("missing required environment variable: %s", key)
-			}
-			envVariables[key] = value
-		}
-	}
-
-	return envVariables, nil
-}
-
-func initDB(envVars map[string]string) (*gorm.DB, error) {
-	var db *gorm.DB
-
-	if envVars["DB_TYPE"] == "local" {
-		sqlite, err := database.SqliteConnect()
-		if err != nil {
-			return nil, err
-		}
-		err = database.SqliteInit(sqlite)
-		if err != nil {
-			return nil, err
-		}
-		db = sqlite
-	} else {
-		mysql, err := database.MysqlConnect(envVars["DB_HOST"], envVars["DB_USER"], envVars["DB_PASSWORD"], envVars["DB_NAME"])
-		if err != nil {
-			return nil, err
-		}
-		db = mysql
-	}
-	return db, nil
-}
 func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
-	envVars, err := loadEnv()
+	err := env.LoadEnv()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	db, err := initDB(envVars)
+	db, err := InitDB()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
 
 	// metrics.InitPrometheusMetrics()
 
-	grpcConn, err := initGRPCConn(envVars["COLLECTOR_ENDPOINT"])
+	grpcConn, err := InitGRPCConn(collectorEndpoint)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}

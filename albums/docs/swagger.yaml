@@ -256,7 +256,7 @@ paths:
       summary: Login and get a JWT Token
       tags:
       - auth
-  /register:
+  /login/register:
     post:
       consumes:
       - application/json

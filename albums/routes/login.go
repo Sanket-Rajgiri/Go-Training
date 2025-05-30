@@ -9,8 +9,10 @@ import (
 )
 
 func RegisterLoginRoutes(router *gin.Engine, handler *handlers.LoginHandler, service service.LoginService) {
+	router.POST("/logout", middleware.JwtAuthMiddleware(), handler.Logout)
 	login := router.Group("/login")
 	// login.GET("/", handlers.LoginHandler, middleware.BasicAuthMiddleware())
+	login.POST("/refresh", handler.Refresh)
 	login.POST("/", middleware.DBAuthMiddleware(service), handler.Login)
 	login.POST("/register", handler.Register)
 }

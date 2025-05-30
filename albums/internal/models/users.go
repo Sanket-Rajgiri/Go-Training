@@ -14,6 +14,7 @@ type Users struct {
 	Password  string `json:"password" binding:"required"`
 	SecretKey string
 	Role      string
+	Revoked   bool `gorm:"default:false"`
 }
 
 type UserSwagger struct {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"albums/config"
+	"albums/internal/config"
 	"albums/internal/customlogs"
 	definedMetrics "albums/internal/metrics"
 	"albums/internal/traces"

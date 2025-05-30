@@ -3,6 +3,7 @@ ifneq (,$(wildcard ./.env))
     export
 endif
 
+
 stop_db: 
 	@docker-compose down
 start_db: 
@@ -19,11 +20,14 @@ atlas_apply:
 atlas_status:
 	@atlas migrate status --env gorm --url ${DB_URL}
 
+build_app:
+	@go build -o albums-app ./cmd/albums
+
 run_app:
-	@go run .
+	@go run ./cmd/albums
 
 test_app: 
 	@go test ./internal/tests/*
 
 swag_init:
-	@swag init -d ./,./internal/handlers
+	@swag init -d ./cmd/albums,./internal/handlers

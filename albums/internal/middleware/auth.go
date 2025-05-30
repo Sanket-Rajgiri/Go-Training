@@ -1,12 +1,13 @@
 package middleware
 
 import (
+	"albums/internal/config/env"
 	"albums/internal/customlogs"
 	"albums/internal/models"
 	"albums/internal/service"
+
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -17,35 +18,22 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-var BasicAuthAccounts = gin.Accounts{
-	"user": "admin",
-}
-
-var RoleMapping = map[string][]string{
-	"user": []string{
-		"POST /login",
-		"POST /login/Register",
-		"GET /albums/",
-		"GET /albums/:id",
-		"POST /albums/",
-		"PATCH /albums/"},
-}
-
-func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tracer := otel.Tracer("Middleware-Tracer")
-		_, span := tracer.Start(c.Request.Context(), "AuthMiddleware")
-		defer span.End()
-		authHeader := c.GetHeader("Authorization")
-		bearerToken := strings.Split(authHeader, " ")[1]
-		if _, ok := service.TokenStore[bearerToken]; !ok {
-			span.SetStatus(codes.Error, "unauthorised")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorised"})
-		}
-		span.SetStatus(codes.Ok, "access granted")
-		c.Next()
+var (
+	BasicAuthAccounts = gin.Accounts{
+		"user": "admin",
 	}
-}
+
+	RoleMapping = map[string][]string{
+		"user": []string{
+			"POST /login",
+			"POST /login/Register",
+			"GET /albums/",
+			"GET /albums/:id",
+			"POST /albums/",
+			"PATCH /albums/"},
+	}
+)
+
 func BasicAuthMiddleware() gin.HandlerFunc {
 	return gin.BasicAuth(BasicAuthAccounts)
 }
@@ -73,7 +61,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 		}
 		claims := &service.TokenClaim{}
 		_, err := jwt.ParseWithClaims(bearerToken, claims, func(t *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("JWT_SECRET")), nil
+			return []byte(env.JWT_SECRET), nil
 		})
 		if err != nil {
 			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error in validating token: %v", err))
@@ -140,7 +128,7 @@ func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid json", "msg": err.Error()})
 			return
 		}
-		authenticated, userID, err := service.ValidateCredentials(c.Request.Context(), credentials.Username, credentials.Password)
+		userID, role, err := service.ValidateCredentials(c.Request.Context(), credentials.Username, credentials.Password)
 		if err != nil {
 			customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
 			span.SetStatus(codes.Error, err.Error())
@@ -148,12 +136,7 @@ func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
 			return
 		}
 		c.Set("UserID", strconv.FormatUint(uint64(userID), 10))
-		if !authenticated {
-			customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("userID: %d unauthorised", userID))
-			span.SetStatus(codes.Error, "unauthorised")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorised"})
-			return
-		}
+		c.Set("Role", role)
 		span.SetStatus(codes.Ok, "authenticated user")
 		c.Next()
 	}
