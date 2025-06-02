@@ -1,5 +1,5 @@
-ifneq (,$(wildcard ./.env))
-    include .env
+ifneq (,$(wildcard ./.env.list))
+    include ./.env.list
     export
 endif
 
@@ -7,7 +7,7 @@ endif
 stop_db: 
 	@docker-compose down
 start_db: 
-	@docker-compose up -d 
+	@docker-compose up -d mysql-db
 atlas_install: 
 	@curl -sSf https://atlasgo.sh | sh
 
@@ -23,6 +23,10 @@ atlas_status:
 build_app:
 	@go build -o albums-app ./cmd/albums
 
+build_docker_app:
+	@docker-compose build gin-app
+run_docker_app: 
+	@docker-compose up -d gin-app
 run_app:
 	@go run ./cmd/albums
 

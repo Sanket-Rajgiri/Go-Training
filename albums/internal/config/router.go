@@ -25,8 +25,7 @@ import (
 )
 
 var (
-	serviceName       = semconv.ServiceNameKey.String("gin-app")
-	collectorEndpoint = env.COLLECTOR_ENDPOINT
+	serviceName = semconv.ServiceNameKey.String("gin-app")
 )
 
 func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
@@ -40,8 +39,7 @@ func RouterSetup(ctx context.Context) (*gin.Engine, *gorm.DB) {
 	}
 
 	// metrics.InitPrometheusMetrics()
-
-	grpcConn, err := InitGRPCConn(collectorEndpoint)
+	grpcConn, err := InitGRPCConn(env.COLLECTOR_ENDPOINT)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}

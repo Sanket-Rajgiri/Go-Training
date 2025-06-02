@@ -1,0 +1,10 @@
+ENV=dev
+DB_USER=root
+DB_PASSWORD=admin
+DB_HOST=mysql-db
+DB_NAME=test
+DB_URL=mysql://root:admin@mysq-ldb:3306/test
+COLLECTOR_ENDPOINT=otel-collector:4317
+JWT_SECRET=abcd
+JWT_EXPIRY_MINUTES=5
+REFRESH_TOKEN_EXPIRY_MINUTES=30

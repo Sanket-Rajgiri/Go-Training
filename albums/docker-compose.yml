@@ -2,8 +2,8 @@ services:
   mysql-db:
     image: mysql:8.0-debian
     container_name: mysql-db
-    # ports:
-    #   - "3306:3306"  # Map MySQL port to the host
+    ports:
+      - "3306:3306"  # Map MySQL port to the host
     environment:
       MYSQL_ROOT_PASSWORD: "admin"
       MYSQL_DATABASE: "test"
@@ -16,7 +16,20 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql  # Persist MySQL data
       - mysql_conf:/etc/mysql/conf.d  # Add custom MySQL configuration if needed
-    network_mode: host
+    networks:
+      - signoz-net
+
+  gin-app:
+    build: .
+    ports:
+    - "8090:8090"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    env_file:
+      - ./.docker-env.list
+    networks:
+      - signoz-net
 
   # otel-collector:
   #   image: otel/opentelemetry-collector-contrib:0.126.0
@@ -42,3 +55,6 @@ volumes:
   mysql_data:
   mysql_conf:
 
+networks:
+  signoz-net:
+    external: true

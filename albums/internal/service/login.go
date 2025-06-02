@@ -49,7 +49,7 @@ type LoginServiceImpl struct {
 
 func (service *LoginServiceImpl) Login(ctx context.Context, userID, role string) (string, string, error) {
 	tracer := otel.Tracer("Service-Tracer")
-	_, span := tracer.Start(ctx, "Login")
+	ctx, span := tracer.Start(ctx, "Login")
 	defer span.End()
 	var access_token, refresh_token string
 
@@ -244,7 +244,7 @@ func (service *LoginServiceImpl) jwtTokenValidator(ctx context.Context, bearerTo
 
 func (service *LoginServiceImpl) jwtTokenGenerator(ctx context.Context, userID, role string, jwtSecret []byte, jwtExpiryMinutes int) (string, error) {
 	tracer := otel.Tracer("Service-Tracer")
-	_, span := tracer.Start(ctx, "jwtTokenGenerator")
+	ctx, span := tracer.Start(ctx, "jwtTokenGenerator")
 	defer span.End()
 	var signedToken string
 	expiryTime := time.Now().Add(time.Minute * time.Duration(jwtExpiryMinutes))
