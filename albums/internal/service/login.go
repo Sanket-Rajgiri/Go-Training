@@ -52,7 +52,6 @@ func (service *LoginServiceImpl) Login(ctx context.Context, userID, role string)
 	ctx, span := tracer.Start(ctx, "Login")
 	defer span.End()
 	var access_token, refresh_token string
-
 	user, err := service.getUserbyID(ctx, userID)
 	if err != nil {
 		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
@@ -84,6 +83,28 @@ func (service *LoginServiceImpl) Login(ctx context.Context, userID, role string)
 	}
 
 	return access_token, refresh_token, nil
+}
+
+func (service *LoginServiceImpl) Logout(ctx context.Context, username string) error {
+	tracer := otel.Tracer("Service-Tracer")
+	ctx, span := tracer.Start(ctx, "Logout")
+	defer span.End()
+	user, err := service.getUserInfo(ctx, username)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return err
+	}
+	user.Revoked = true
+	if err := service.DB.WithContext(ctx).Save(user).Error; err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
+		return err
+	}
+	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("User : %s logged out", username))
+	span.SetStatus(codes.Ok, "logged out")
+	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
+	return nil
 }
 
 func (service *LoginServiceImpl) RefreshToken(ctx context.Context, username, token string) (string, error) {
@@ -124,42 +145,6 @@ func (service *LoginServiceImpl) RefreshToken(ctx context.Context, username, tok
 	return newAccessToken, nil
 }
 
-func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, username, password string) (uint, string, error) {
-	tracer := otel.Tracer("Service-Tracer")
-	ctx, span := tracer.Start(ctx, "ValidateCredentials")
-	defer span.End()
-	user, err := service.getUserInfo(ctx, username)
-	if err != nil {
-		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
-		span.SetStatus(codes.Error, err.Error())
-		return 0, "", err
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error validating password: %v", err.Error()))
-		span.SetStatus(codes.Error, err.Error())
-		return 0, "", err
-	}
-	customlogs.OtelLogger.Ctx(ctx).Info("credentials valid")
-	span.SetStatus(codes.Ok, "credentials valid")
-	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
-	return user.ID, user.Role, nil
-}
-
-func generateRandomString(length int) (string, error) {
-	bytes := make([]byte, length)
-	var randomString string
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return randomString, err
-	}
-
-	for i, b := range bytes {
-		bytes[i] = charset[int(b)%len(charset)]
-	}
-	randomString = string(bytes)
-	return randomString, nil
-}
-
 func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, password string) (models.Users, error) {
 	tracer := otel.Tracer("Service-Tracer")
 	ctx, span := tracer.Start(ctx, "RegisterUser")
@@ -179,7 +164,7 @@ func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, pas
 		return models.Users{}, err
 	}
 
-	secretKey, err := generateRandomString(16)
+	secretKey, err := service.generateRandomString(16)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
@@ -202,26 +187,40 @@ func (service *LoginServiceImpl) RegisterUser(ctx context.Context, username, pas
 	return user, nil
 }
 
-func (service *LoginServiceImpl) Logout(ctx context.Context, username string) error {
+func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, username, password string) (uint, string, error) {
 	tracer := otel.Tracer("Service-Tracer")
-	ctx, span := tracer.Start(ctx, "Logout")
+	ctx, span := tracer.Start(ctx, "ValidateCredentials")
 	defer span.End()
 	user, err := service.getUserInfo(ctx, username)
 	if err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
 		span.SetStatus(codes.Error, err.Error())
-		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
-		return err
+		return 0, "", err
 	}
-	user.Revoked = true
-	if err := service.DB.WithContext(ctx).Save(user).Error; err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error validating password: %v", err.Error()))
 		span.SetStatus(codes.Error, err.Error())
-		customlogs.OtelLogger.Ctx(ctx).Error(err.Error())
-		return err
+		return 0, "", err
 	}
-	customlogs.OtelLogger.Ctx(ctx).Info(fmt.Sprintf("User : %s logged out", username))
-	span.SetStatus(codes.Ok, "logged out")
+	customlogs.OtelLogger.Ctx(ctx).Info("credentials valid")
+	span.SetStatus(codes.Ok, "credentials valid")
 	span.SetAttributes(attribute.Int64("userID", int64(user.ID)))
-	return nil
+	return user.ID, user.Role, nil
+}
+
+func (service *LoginServiceImpl) generateRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	var randomString string
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return randomString, err
+	}
+
+	for i, b := range bytes {
+		bytes[i] = charset[int(b)%len(charset)]
+	}
+	randomString = string(bytes)
+	return randomString, nil
 }
 
 func (service *LoginServiceImpl) jwtTokenValidator(ctx context.Context, bearerToken, secretKey string) (*TokenClaim, error) {
