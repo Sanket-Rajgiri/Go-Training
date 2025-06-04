@@ -1,6 +1,7 @@
-package handlers
+package handlers_test
 
 import (
+	"albums/internal/handlers"
 	"albums/internal/mocks"
 	"albums/internal/models"
 	"encoding/json"
@@ -59,7 +60,7 @@ func TestGetAlbums(t *testing.T) {
 			mockService := new(mocks.AlbumService)
 			mockService.On("GetAlbums", mock.Anything).Return(tt.mockResponse, tt.mockError)
 
-			handler := AlbumHandler{AlbumService: mockService}
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.GetAlbums(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 
@@ -129,7 +130,7 @@ func TestGetAlbumByID(t *testing.T) {
 				mockService.On("GetAlbumByID", mock.Anything, uint(id)).Return(tt.mockResponse, tt.mockError)
 			}
 
-			handler := AlbumHandler{AlbumService: mockService}
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.GetAlbumByID(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 
@@ -203,7 +204,7 @@ func TestAddAlbums(t *testing.T) {
 				mockService.On("AddAlbums", mock.Anything, tt.mockInput).Return(tt.mockReturnID, tt.mockError)
 			}
 
-			handler := AlbumHandler{AlbumService: mockService}
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 
 			handler.AddAlbums(c)
 
@@ -264,7 +265,7 @@ func TestUpdatePrice(t *testing.T) {
 				mockService.On("UpdatePrice", mock.Anything, tt.mockInput).Return(tt.mockInput.ID, tt.mockError)
 			}
 
-			handler := AlbumHandler{AlbumService: mockService}
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.UpdatePrice(c)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
@@ -323,7 +324,7 @@ func TestDeleteAlbum(t *testing.T) {
 				mockService.On("DeleteAlbum", mock.Anything, uint(id)).Return(tt.mockReturnID, tt.mockError)
 			}
 
-			handler := AlbumHandler{AlbumService: mockService}
+			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.DeleteAlbum(c)
 
 			assert.Equal(t, tt.expectedCode, w.Code)

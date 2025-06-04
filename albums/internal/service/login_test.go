@@ -1,7 +1,8 @@
-package service
+package service_test
 
 import (
 	"albums/internal/models"
+	"albums/internal/service"
 	"context"
 	"errors"
 	"fmt"
@@ -105,7 +106,7 @@ func TestRegisterUser(t *testing.T) {
 
 			tt.setupMock(mock, tt.username, tt.password)
 
-			svc := &LoginServiceImpl{DB: db}
+			svc := &service.LoginServiceImpl{DB: db}
 			ctx := context.Background()
 
 			user, err := svc.RegisterUser(ctx, tt.username, tt.password)
@@ -206,7 +207,7 @@ func TestLogin(t *testing.T) {
 
 			tt.setupMock(mock, tt.userID)
 
-			svc := &LoginServiceImpl{DB: db}
+			svc := &service.LoginServiceImpl{DB: db}
 			ctx := context.Background()
 
 			_, _, err := svc.Login(ctx, tt.userID, "user")
@@ -303,7 +304,7 @@ func TestLogout(t *testing.T) {
 
 			tt.setupMock(mock, tt.username)
 
-			svc := &LoginServiceImpl{DB: db}
+			svc := &service.LoginServiceImpl{DB: db}
 			ctx := context.Background()
 
 			err := svc.Logout(ctx, tt.username)
@@ -385,7 +386,7 @@ func TestRefreshToken(t *testing.T) {
 
 			tt.setupMock(mock, tt.username)
 
-			svc := &LoginServiceImpl{DB: db}
+			svc := &service.LoginServiceImpl{DB: db}
 			ctx := context.Background()
 
 			_, err := svc.RefreshToken(ctx, tt.username, tt.token)
@@ -454,7 +455,7 @@ func TestValidateCredentials(t *testing.T) {
 
 			tt.setupMock(mock, tt.username, tt.password)
 
-			svc := &LoginServiceImpl{DB: db}
+			svc := &service.LoginServiceImpl{DB: db}
 			ctx := context.Background()
 
 			_, _, err := svc.ValidateCredentials(ctx, tt.username, tt.password)
