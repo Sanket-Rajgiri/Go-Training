@@ -27,7 +27,7 @@ func (m *LoginService) RegisterUser(ctx context.Context,username, password strin
 
 func (m *LoginService) ValidateCredentials(ctx context.Context,username, password string) ( uint,string, error) {
 	args := m.Called(ctx,username, password)
-	return  uint(args.Int(0)),args.String(1), args.Error(2)
+	return  args.Get(0).(uint),args.Get(1).(string), args.Error(2)
 }
 
 func (m* LoginService) Logout(ctx context.Context, username string) error {

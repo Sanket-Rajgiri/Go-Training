@@ -3,6 +3,7 @@ package middleware
 import (
 	"albums/internal/config/env"
 	"albums/internal/customlogs"
+	"albums/internal/handlers"
 	"albums/internal/models"
 	"albums/internal/service"
 
@@ -114,9 +115,8 @@ func RoleValidationMiddleware() gin.HandlerFunc {
 	}
 }
 
-func DBAuthMiddleware(service service.LoginService) gin.HandlerFunc {
+func DBAuthMiddleware(service handlers.LoginService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		tracer := otel.Tracer("Middleware-Tracer")
 		ctx, span := tracer.Start(c.Request.Context(), "DBAuthMiddleware")
 		c.Request = c.Request.WithContext(ctx)
