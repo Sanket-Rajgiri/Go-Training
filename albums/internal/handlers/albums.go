@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"albums/internal/models"
-	"albums/internal/service"
+	"context"
 	"net/http"
 	"strconv"
 
@@ -12,8 +12,16 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+type AlbumsService interface {
+	GetAlbums(ctx context.Context) ([]models.Album, error)
+	GetAlbumByID(ctx context.Context, id uint) (models.Album, error)
+	AddAlbums(ctx context.Context, album models.Album) (uint, error)
+	UpdatePrice(ctx context.Context, album models.Album) (uint, error)
+	DeleteAlbum(ctx context.Context, id uint) (uint, error)
+}
+
 type AlbumHandler struct {
-	AlbumService service.AlbumsService
+	AlbumService AlbumsService
 }
 
 // GetAlbums godoc

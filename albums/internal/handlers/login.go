@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"albums/internal/models"
-	"albums/internal/service"
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,8 +11,16 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+type LoginService interface {
+	Login(ctx context.Context, userID, role string) (string, string, error)
+	Logout(ctx context.Context, username string) error
+	RefreshToken(ctx context.Context, username, token string) (string, error)
+	RegisterUser(ctx context.Context, username, password string) (models.Users, error)
+	ValidateCredentials(ctx context.Context, username, password string) (uint, string, error)
+}
+
 type LoginHandler struct {
-	LoginService service.LoginService
+	LoginService LoginService
 }
 
 // Login godoc

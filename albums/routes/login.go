@@ -3,12 +3,11 @@ package routes
 import (
 	"albums/internal/handlers"
 	"albums/internal/middleware"
-	"albums/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterLoginRoutes(router *gin.Engine, handler *handlers.LoginHandler, service service.LoginService) {
+func RegisterLoginRoutes(router *gin.Engine, handler *handlers.LoginHandler, service handlers.LoginService) {
 	router.POST("/logout", middleware.JwtAuthMiddleware(), handler.Logout)
 	login := router.Group("/login")
 	// login.GET("/", handlers.LoginHandler, middleware.BasicAuthMiddleware())

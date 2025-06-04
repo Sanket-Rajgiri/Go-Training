@@ -13,14 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type AlbumsService interface {
-	GetAlbums(ctx context.Context) ([]models.Album, error)
-	GetAlbumByID(ctx context.Context, id uint) (models.Album, error)
-	AddAlbums(ctx context.Context, album models.Album) (uint, error)
-	UpdatePrice(ctx context.Context, album models.Album) (uint, error)
-	DeleteAlbum(ctx context.Context, id uint) (uint, error)
-}
-
 type AlbumServiceImpl struct {
 	DB *gorm.DB
 }

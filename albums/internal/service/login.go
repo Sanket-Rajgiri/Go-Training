@@ -31,18 +31,6 @@ type TokenClaim struct {
 	jwt.RegisteredClaims
 }
 
-type LoginService interface {
-	Login(ctx context.Context, userID, role string) (string, string, error)
-	Logout(ctx context.Context, username string) error
-	RefreshToken(ctx context.Context, username, token string) (string, error)
-	RegisterUser(ctx context.Context, username, password string) (models.Users, error)
-	ValidateCredentials(ctx context.Context, username, password string) (uint, string, error)
-	// jwtTokenGenerator(ctx context.Context, userID, role string, jwtSecret []byte, jwtExpiryMinutes int) (string, error)
-	// jwtTokenValidator(ctx context.Context, bearerToken, secretKey string) (*TokenClaim, error)
-	// getUserbyID(ctx context.Context, userID string) (models.Users, error)
-	// getUserInfo(ctx context.Context, username string) (models.Users, error)
-}
-
 type LoginServiceImpl struct {
 	DB *gorm.DB
 }
