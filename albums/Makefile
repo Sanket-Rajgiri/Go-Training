@@ -37,4 +37,4 @@ swag_init:
 	@swag init -d ./cmd/albums,./internal/handlers
 
 test_coverage:
-	@go tool cover ./...
+	@go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
