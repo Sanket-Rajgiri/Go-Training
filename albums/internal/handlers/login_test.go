@@ -1,7 +1,6 @@
-package handlers_test
+package handlers
 
 import (
-	"albums/internal/handlers"
 	"albums/internal/mocks"
 	"albums/internal/models"
 	"bytes"
@@ -57,7 +56,7 @@ func TestRegisterHandler(t *testing.T) {
 			mockService.On("RegisterUser", mock.Anything, tt.requestBody.Username, tt.requestBody.Password).
 				Return(tt.mockResponse, tt.mockError)
 
-			handler := handlers.LoginHandler{LoginService: mockService}
+			handler := LoginHandler{LoginService: mockService}
 			handler.Register(c)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
@@ -132,7 +131,7 @@ func TestLoginHandler(t *testing.T) {
 					Return(tt.mockAccessToken, tt.mockRefreshToken, tt.mockError)
 			}
 
-			handler := handlers.LoginHandler{LoginService: mockService}
+			handler := LoginHandler{LoginService: mockService}
 			handler.Login(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 			assert.Contains(t, w.Body.String(), tt.expectedResult)
@@ -143,7 +142,7 @@ func TestLoginHandler(t *testing.T) {
 func TestRefreshHandler(t *testing.T) {
 	tests := []struct {
 		name             string
-		requestBody      handlers.RefreshHandlerBody
+		requestBody      RefreshHandlerBody
 		mockRefreshToken string
 		mockError        error
 		expectedCode     int
@@ -151,7 +150,7 @@ func TestRefreshHandler(t *testing.T) {
 	}{
 		{
 			name: "successful refresh",
-			requestBody: handlers.RefreshHandlerBody{
+			requestBody: RefreshHandlerBody{
 				Username: "abc",
 				Token:    "swdwcax",
 			},
@@ -162,7 +161,7 @@ func TestRefreshHandler(t *testing.T) {
 		},
 		{
 			name: "Invalid Body",
-			requestBody: handlers.RefreshHandlerBody{
+			requestBody: RefreshHandlerBody{
 				Username: "abc",
 			},
 			expectedCode:   http.StatusBadRequest,
@@ -170,7 +169,7 @@ func TestRefreshHandler(t *testing.T) {
 		},
 		{
 			name: "token generation failed",
-			requestBody: handlers.RefreshHandlerBody{
+			requestBody: RefreshHandlerBody{
 				Username: "xyz",
 				Token:    "w234ty54rdw",
 			},
@@ -194,7 +193,7 @@ func TestRefreshHandler(t *testing.T) {
 
 			mockService := new(mocks.LoginService)
 			mockService.On("RefreshToken", mock.Anything, tt.requestBody.Username, tt.requestBody.Token).Return(tt.mockRefreshToken, tt.mockError)
-			handler := handlers.LoginHandler{LoginService: mockService}
+			handler := LoginHandler{LoginService: mockService}
 			handler.Refresh(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 			assert.Contains(t, w.Body.String(), tt.expectedResult)
@@ -255,7 +254,7 @@ func TestLogoutHandler(t *testing.T) {
 			if len(tt.mockUsername) > 0 {
 				mockService.On("Logout", mock.Anything, tt.mockUsername).Return(tt.mockError)
 			}
-			handler := handlers.LoginHandler{LoginService: mockService}
+			handler := LoginHandler{LoginService: mockService}
 			handler.Logout(c)
 			assert.Equal(t, tt.expectedCode, w.Code)
 			assert.Contains(t, w.Body.String(), tt.expectedResult)

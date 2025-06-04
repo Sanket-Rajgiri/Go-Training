@@ -31,7 +31,10 @@ run_app:
 	@go run ./cmd/albums
 
 test_app: 
-	@go test ./internal/tests/*
+	@go test ./internal/*
 
 swag_init:
 	@swag init -d ./cmd/albums,./internal/handlers
+
+test_coverage:
+	@go tool cover ./...

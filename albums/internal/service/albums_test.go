@@ -1,10 +1,10 @@
-package service_test
+package service
 
 import (
 	"albums/internal/customlogs"
 	definedMetrics "albums/internal/metrics"
 	"albums/internal/models"
-	"albums/internal/service"
+
 	"context"
 	"errors"
 	"fmt"
@@ -128,7 +128,7 @@ func TestAddAlbums(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, cleanup := setupTestDB(t)
 			defer cleanup()
-			svc := &service.AlbumServiceImpl{DB: db}
+			svc := &AlbumServiceImpl{DB: db}
 			ctx := context.Background()
 			tt.setupMock(mock, tt.album)
 			id, err := svc.AddAlbums(ctx, tt.album)
@@ -184,7 +184,7 @@ func TestGetAlbums(t *testing.T) {
 			db, mock, cleanup := setupTestDB(t)
 			defer cleanup()
 
-			svc := &service.AlbumServiceImpl{DB: db}
+			svc := &AlbumServiceImpl{DB: db}
 			tt.setupMock(mock)
 
 			ctx := context.Background()
@@ -245,7 +245,7 @@ func TestGetAlbumByID(t *testing.T) {
 			db, mock, cleanup := setupTestDB(t)
 			defer cleanup()
 
-			svc := &service.AlbumServiceImpl{DB: db}
+			svc := &AlbumServiceImpl{DB: db}
 
 			tt.setupMock(mock, tt.inputID)
 
@@ -352,7 +352,7 @@ func TestUpdatePrice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, cleanup := setupTestDB(t)
 			defer cleanup()
-			svc := &service.AlbumServiceImpl{DB: db}
+			svc := &AlbumServiceImpl{DB: db}
 			ctx := context.Background()
 
 			tt.setupMock(mock, tt.album)
@@ -431,7 +431,7 @@ func TestDeleteAlbum(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, cleanup := setupTestDB(t)
 			defer cleanup()
-			svc := &service.AlbumServiceImpl{DB: db}
+			svc := &AlbumServiceImpl{DB: db}
 			ctx := context.Background()
 
 			tt.setupMock(mock, tt.inputID)
