@@ -178,6 +178,17 @@ func TestGetAlbums(t *testing.T) {
 			expectedFirstTitle: "",
 			expectError:        false,
 		},
+		{
+			name: "error from db",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(regexp.QuoteMeta(
+					"SELECT * FROM `albums` WHERE `albums`.`deleted_at` IS NULL",
+				)).WillReturnError(fmt.Errorf("error from db"))
+			},
+			expectedLen:        0,
+			expectedFirstTitle: "",
+			expectError:        true,
+		},
 	}
 
 	for _, tt := range tests {

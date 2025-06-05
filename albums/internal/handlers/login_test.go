@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"albums/internal/customlogs"
 	"albums/internal/handlers"
 	"albums/internal/mocks"
 	"albums/internal/models"
@@ -14,7 +15,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
+	"go.opentelemetry.io/otel"
+	noopTrace "go.opentelemetry.io/otel/trace/noop"
+	"go.uber.org/zap"
 )
+
+func initOtelSetup() {
+	otel.SetTracerProvider(noopTrace.NewTracerProvider())
+	customlogs.OtelLogger = otelzap.New(zap.NewNop())
+}
 
 func TestRegisterHandler(t *testing.T) {
 	tests := []struct {
@@ -41,11 +51,20 @@ func TestRegisterHandler(t *testing.T) {
 			expectedCode:   http.StatusInternalServerError,
 			expectedResult: `assert.AnError general error for testing`,
 		},
+		{
+			name: "invalid json",
+			requestBody: models.Users{
+				Username: "",
+				Password: "",
+			},
+			expectedCode:   http.StatusBadRequest,
+			expectedResult: "Invalid JSON",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			initOtelSetup()
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 
@@ -205,7 +224,7 @@ func TestRefreshHandler(t *testing.T) {
 func TestLogoutHandler(t *testing.T) {
 	tests := []struct {
 		name           string
-		requestBody    map[string]interface{}
+		requestBody    interface{}
 		mockUsername   string
 		mockError      error
 		expectedCode   int
@@ -232,23 +251,48 @@ func TestLogoutHandler(t *testing.T) {
 			expectedResult: `assert.AnError general error for testing`,
 		},
 		{
-			name:           "Invalid Body",
-			requestBody:    nil,
+			name: "Invalid Body",
+			requestBody: map[string]interface{}{
+				"token": "123",
+			},
+			mockUsername:   " ",
+			mockError:      nil,
 			expectedCode:   http.StatusBadRequest,
 			expectedResult: `'username' is required`,
+		},
+		{
+			name: "Empty Username",
+			requestBody: map[string]interface{}{
+				"username": "",
+			},
+			mockUsername:   " ",
+			mockError:      nil,
+			expectedCode:   http.StatusBadRequest,
+			expectedResult: `'username' must be a non-empty string`,
+		},
+		{
+			name:           "Invalid JSON",
+			requestBody:    `{"username": "navdeep"`,
+			expectedCode:   http.StatusBadRequest,
+			expectedResult: `Invalid JSON`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			initOtelSetup()
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			jsonBody, err := json.Marshal(tt.requestBody)
-			if err != nil {
-				t.Errorf("error in parsing struct : %v", err)
+			switch v := tt.requestBody.(type) {
+			case string:
+				c.Request = httptest.NewRequest(http.MethodPost, "/logout", strings.NewReader(v))
+			case map[string]interface{}:
+				jsonBody, _ := json.Marshal(v)
+				c.Request = httptest.NewRequest(http.MethodPost, "/logout", bytes.NewBuffer(jsonBody))
+			default:
+
 			}
-			c.Request = httptest.NewRequest(http.MethodPost, "/logout", strings.NewReader(string(jsonBody)))
+			// c.Request = httptest.NewRequest(http.MethodPost, "/logout", strings.NewReader(tt.requestBody))
 			c.Request.Header.Set("Content-Type", "application/json")
 
 			mockService := new(mocks.LoginService)
