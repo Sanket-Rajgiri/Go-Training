@@ -26,12 +26,22 @@ var (
 
 	RoleMapping = map[string][]string{
 		"user": []string{
-			"POST /login",
-			"POST /login/Register",
 			"GET /albums/",
 			"GET /albums/:id",
 			"POST /albums/",
-			"PATCH /albums/"},
+			"PATCH /albums/",
+		},
+		"reader": []string{
+			"GET /albums/",
+			"GET /albums/:id",
+		},
+		"admin": []string{
+			"GET /albums/",
+			"GET /albums/:id",
+			"POST /albums/",
+			"PATCH /albums/",
+			"DELETE /albums/:id",
+		},
 	}
 )
 
