@@ -1,4 +1,4 @@
-package integration_test
+package routes_test
 
 import (
 	"albums/internal/config/env"
