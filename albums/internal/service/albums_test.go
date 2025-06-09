@@ -1,10 +1,9 @@
 package service_test
 
 import (
-	"albums/internal/customlogs"
-	definedMetrics "albums/internal/metrics"
 	"albums/internal/models"
 	"albums/internal/service"
+	testutils "albums/internal/testUtils"
 
 	"context"
 	"errors"
@@ -14,20 +13,13 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
-	"go.opentelemetry.io/otel"
-	noopMetric "go.opentelemetry.io/otel/metric/noop"
-	noopTrace "go.opentelemetry.io/otel/trace/noop"
-	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func setupTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
-	// Step 1: Create mock SQL DB
-	otel.SetTracerProvider(noopTrace.NewTracerProvider())
-	customlogs.OtelLogger = otelzap.New(zap.NewNop())
-	definedMetrics.AlbumsAdded = noopMetric.Int64Counter{}
+	// Step 1: Create mock SQL D
+	testutils.InitOtel()
 	sqlDB, mock, err := sqlmock.New()
 	assert.NoError(t, err)
 
