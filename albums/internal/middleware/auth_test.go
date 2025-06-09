@@ -45,9 +45,9 @@ func TestRoleValidationMiddleware(t *testing.T) {
 			name:           "valid role",
 			role:           "user",
 			method:         http.MethodPost,
-			path:           "/login",
+			path:           "/albums/",
 			expectedStatus: http.StatusOK,
-			expectedBody:   "login",
+			expectedBody:   "Ok",
 		},
 		{
 			name:           "role not found",
@@ -61,7 +61,7 @@ func TestRoleValidationMiddleware(t *testing.T) {
 			name:           "invalid role type",
 			role:           make(map[string]string),
 			method:         http.MethodPost,
-			path:           "/login",
+			path:           "/albums/",
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "invalid role type",
 		},
@@ -69,7 +69,7 @@ func TestRoleValidationMiddleware(t *testing.T) {
 			name:           "unknown role",
 			role:           "guest",
 			method:         http.MethodPost,
-			path:           "/login",
+			path:           "/albums/",
 			expectedStatus: http.StatusForbidden,
 			expectedBody:   "Access Denied",
 		},
@@ -77,7 +77,7 @@ func TestRoleValidationMiddleware(t *testing.T) {
 			name:           "route not allowed",
 			role:           "user",
 			method:         http.MethodGet,
-			path:           "/invalid",
+			path:           "/albums/",
 			expectedStatus: http.StatusForbidden,
 			expectedBody:   "route not allowed to access",
 		},
@@ -94,8 +94,8 @@ func TestRoleValidationMiddleware(t *testing.T) {
 			})
 			router.Use(middleware.RoleValidationMiddleware())
 
-			router.POST("/login", func(c *gin.Context) {
-				c.String(http.StatusOK, "login")
+			router.POST("/albums/", func(c *gin.Context) {
+				c.String(http.StatusOK, "Ok")
 			})
 
 			router.GET("/invalid", func(c *gin.Context) {
