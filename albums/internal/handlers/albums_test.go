@@ -227,9 +227,9 @@ func TestUpdatePrice(t *testing.T) {
 	}{
 		{
 			name:        "Success",
-			requestBody: `{"id":1,"price":20.5}`,
+			requestBody: `{"id":1,"title" : "test title", "artist": "test artist","price":20.5}`,
 			mockInput: models.Album{
-				Model: gorm.Model{ID: 1}, Price: 20.5},
+				Model: gorm.Model{ID: 1}, Title: "test title", Artist: "test artist", Price: 20.5},
 			mockError:      nil,
 			expectedCode:   http.StatusOK,
 			expectedResult: `"message": "Album Price Updated Successfully"`,
@@ -242,9 +242,9 @@ func TestUpdatePrice(t *testing.T) {
 		},
 		{
 			name:        "Service Error",
-			requestBody: `{"id":2,"price":11}`,
+			requestBody: `{"id":2,"title":"test title 2","artist":"test artist 2","price":11}`,
 			mockInput: models.Album{
-				Model: gorm.Model{ID: 2}, Price: 11},
+				Model: gorm.Model{ID: 2}, Title: "test title 2", Artist: "test artist 2", Price: 11},
 			mockError:      errors.New("update fail"),
 			expectedCode:   http.StatusInternalServerError,
 			expectedResult: `"error": "update fail"`,
@@ -253,7 +253,6 @@ func TestUpdatePrice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 			req := httptest.NewRequest(http.MethodPut, "/albums", strings.NewReader(tt.requestBody))
@@ -261,9 +260,7 @@ func TestUpdatePrice(t *testing.T) {
 			c.Request = req
 
 			mockService := new(mocks.AlbumService)
-			if tt.mockError != nil || tt.mockInput.ID != 0 {
-				mockService.On("UpdatePrice", mock.Anything, tt.mockInput).Return(tt.mockInput.ID, tt.mockError)
-			}
+			mockService.On("UpdatePrice", mock.Anything, tt.mockInput).Return(tt.mockInput.ID, tt.mockError)
 
 			handler := handlers.AlbumHandler{AlbumService: mockService}
 			handler.UpdatePrice(c)
@@ -311,7 +308,6 @@ func TestDeleteAlbum(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 			c.Params = []gin.Param{{Key: "id", Value: tt.paramID}}
