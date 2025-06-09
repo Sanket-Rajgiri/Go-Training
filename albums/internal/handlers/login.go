@@ -96,7 +96,7 @@ func (handler *LoginHandler) Register(c *gin.Context) {
 	}
 	span.SetAttributes(attribute.Int64("userID", int64(user.ID)), attribute.String("username", user.Username))
 	span.SetStatus(codes.Ok, "user created")
-	c.IndentedJSON(http.StatusOK, gin.H{"message": "user created", "ID": user.ID, "username": user.Username, "password": user.Password})
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "user created", "ID": user.ID, "username": user.Username})
 }
 
 // Refresh godoc
