@@ -8,9 +8,9 @@ import (
 
 type Album struct {
 	gorm.Model
-	Title  string  `json:"title" example:"Blue Train"`
-	Artist string  `json:"artist" example:"John Coltrane"`
-	Price  float64 `json:"price" example:"56.99"`
+	Title  string  `json:"title" binding:"required" example:"Blue Train"`
+	Artist string  `json:"artist" binding:"required" example:"John Coltrane"`
+	Price  float64 `json:"price" binding:"required" example:"56.99"`
 }
 
 // AlbumSwagger is used for Swagger documentation only
