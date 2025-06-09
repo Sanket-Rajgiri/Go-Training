@@ -104,6 +104,9 @@ func (service *LoginServiceImpl) RefreshToken(ctx context.Context, username, tok
 	if err != nil {
 		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
 		span.SetStatus(codes.Error, err.Error())
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return newAccessToken, fmt.Errorf("user not found")
+		}
 		return newAccessToken, err
 	}
 
@@ -183,12 +186,15 @@ func (service *LoginServiceImpl) ValidateCredentials(ctx context.Context, userna
 	if err != nil {
 		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error fetching user details: %v", err.Error()))
 		span.SetStatus(codes.Error, err.Error())
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, "", fmt.Errorf("username not found")
+		}
 		return 0, "", err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		customlogs.OtelLogger.Ctx(ctx).Error(fmt.Sprintf("error validating password: %v", err.Error()))
 		span.SetStatus(codes.Error, err.Error())
-		return 0, "", err
+		return 0, "", fmt.Errorf("invalid credentials")
 	}
 	customlogs.OtelLogger.Ctx(ctx).Info("credentials valid")
 	span.SetStatus(codes.Ok, "credentials valid")
