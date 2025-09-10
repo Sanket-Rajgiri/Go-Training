@@ -1,0 +1,4 @@
+Error: Something failed
+Warning: Low disk space
+Info: All systems operational
+error: case-insensitive test

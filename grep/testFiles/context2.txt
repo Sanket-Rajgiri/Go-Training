@@ -1,0 +1,8 @@
+Line 1: This line has nothing
+Line 2: Still nothing here
+Line 3: The keyword appears now
+Line 4: Follows the match
+Line 5: More irrelevant text
+Line 6: keyword is here again
+Line 7: Follow-up line
+Line 8: The end of file

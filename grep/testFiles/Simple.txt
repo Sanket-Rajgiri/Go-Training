@@ -1,0 +1,4 @@
+Hello World
+This is a test file.
+Go is awesome.
+Let's grep some lines!
