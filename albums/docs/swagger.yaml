@@ -1,0 +1,300 @@
+definitions:
+  models.AlbumSwagger:
+    properties:
+      artist:
+        example: John Coltrane
+        type: string
+      created_at:
+        example: "2023-05-19T15:04:05Z"
+        type: string
+      deleted_at:
+        example: "2023-05-20T15:04:05Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      price:
+        example: 56.99
+        type: number
+      title:
+        example: Blue Train
+        type: string
+      updated_at:
+        example: "2023-05-19T15:04:05Z"
+        type: string
+    type: object
+  models.LoginPayload:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.UserSwagger:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+info:
+  contact: {}
+  description: A rest API in Go using Gin framework
+  title: Go Gin Rest API
+  version: "1.0"
+paths:
+  /albums:
+    get:
+      consumes:
+      - application/json
+      description: Returns all albums with ID, title, artist, and price
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.AlbumSwagger'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all albums
+      tags:
+      - albums
+    post:
+      consumes:
+      - application/json
+      description: Creates a new album and returns its ID
+      parameters:
+      - description: Album to add
+        in: body
+        name: album
+        required: true
+        schema:
+          $ref: '#/definitions/models.AlbumSwagger'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add a new album
+      tags:
+      - albums
+    put:
+      consumes:
+      - application/json
+      description: Updates the price of an existing album
+      parameters:
+      - description: Album with updated price
+        in: body
+        name: album
+        required: true
+        schema:
+          $ref: '#/definitions/models.AlbumSwagger'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update album price
+      tags:
+      - albums
+  /albums/{id}:
+    delete:
+      description: Deletes an album by ID
+      parameters:
+      - description: Album ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete album
+      tags:
+      - albums
+    get:
+      description: Returns a single album by its ID
+      parameters:
+      - description: Album ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AlbumSwagger'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get album by ID
+      tags:
+      - albums
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a signed JWT token.
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login and get a JWT Token
+      tags:
+      - auth
+  /login/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account and returns user details.
+      parameters:
+      - description: New user details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserSwagger'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid JSON
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Failed to create user
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    description: Enter your bearer token in the format **Bearer &lt;token&gt;**
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

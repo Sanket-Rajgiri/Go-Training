@@ -1,0 +1,60 @@
+services:
+  mysql-db:
+    image: mysql:8.0-debian
+    container_name: mysql-db
+    ports:
+      - "3306:3306"  # Map MySQL port to the host
+    environment:
+      MYSQL_ROOT_PASSWORD: "admin"
+      MYSQL_DATABASE: "test"
+    healthcheck:
+      test: ["CMD-SHELL","mysqladmin ping --user=root --password=admin"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - mysql_data:/var/lib/mysql  # Persist MySQL data
+      - mysql_conf:/etc/mysql/conf.d  # Add custom MySQL configuration if needed
+    networks:
+      - signoz-net
+
+  gin-app:
+    build: .
+    ports:
+    - "8090:8090"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    env_file:
+      - ./.docker-env.list
+    networks:
+      - signoz-net
+
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:0.126.0
+  #   command: ["--config=/etc/otel-collector.yaml"]
+  #   volumes:
+  #     - ./otel-collector.yaml:/etc/otel-collector.yaml
+  #   ports:
+  #     - 4317:4317
+
+  # prometheus:
+  #   image: prom/prometheus:v3.4.0
+  #   volumes:
+  #     - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+  #   ports:
+  #     - 9090:9090
+
+  # jaeger:
+  #   image: jaegertracing/all-in-one:1.60
+  #   ports:
+  #     - 16686:16686
+      
+volumes:
+  mysql_data:
+  mysql_conf:
+
+networks:
+  signoz-net:
+    external: true
